@@ -1,2 +1,3 @@
-// The Swift Programming Language
-// https://docs.swift.org/swift-book
+public enum AcademicTrainerModule {
+    public static let name = "AcademicTrainer"
+}

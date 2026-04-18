@@ -1,8 +1,114 @@
 import Testing
 @testable import AI___AT___Swift_PRELIMINAR_
+import Foundation
 
-@Test func example() async throws {
-    // Write your test here and use APIs like `#expect(...)` to check expected conditions.
-    // Swift Testing Documentation
-    // https://swiftpackageindex.com/swiftlang/swift-testing/documentation
+@Test("Streak sube cuando todas las actividades del día están completas")
+func streakIncrementsWhenAllActivitiesComplete() async throws {
+    let engine = StreakEngine(calendar: Calendar(identifier: .gregorian))
+    let day = Date(timeIntervalSince1970: 1_710_000_000)
+    let previous = StreakState(days: 2, lastValidatedDay: day.addingTimeInterval(-86_400), reason: .allScheduledActivitiesCompleted)
+    let activities = [
+        Activity(title: "Cálculo", topic: "Derivadas", type: .study, status: .completed, scheduledAt: day),
+        Activity(title: "Tarea 1", topic: "Álgebra", type: .task, status: .completed, scheduledAt: day)
+    ]
+
+    let updated = engine.evaluate(
+        current: previous,
+        input: DailyEvaluationInput(day: day, scheduledActivities: activities, validMentalTrainingCompletions: 0)
+    )
+
+    #expect(updated.days == 3)
+    #expect(updated.reason == .allScheduledActivitiesCompleted)
+}
+
+@Test("Streak se mantiene en día sin agenda con entrenamiento mental válido")
+func streakUsesMentalTrainerOnNoAgendaDay() async throws {
+    let engine = StreakEngine()
+    let day = Date(timeIntervalSince1970: 1_710_086_400)
+    let previous = StreakState(days: 4, lastValidatedDay: day.addingTimeInterval(-86_400), reason: .allScheduledActivitiesCompleted)
+
+    let updated = engine.evaluate(
+        current: previous,
+        input: DailyEvaluationInput(day: day, scheduledActivities: [], validMentalTrainingCompletions: 1)
+    )
+
+    #expect(updated.days == 5)
+    #expect(updated.reason == .mentalTrainingOnNoAgendaDay)
+}
+
+@Test("Inicio de tarea devuelve apoyo y sesión pomodoro")
+func agendaStartTaskReturnsSupportMaterial() async throws {
+    let agenda = AgendaService(intelligence: MockIntelligence())
+    let day = Date(timeIntervalSince1970: 1_710_172_800)
+    let activity = await agenda.createActivity(title: "Repaso", topic: "Cálculo lineal", type: .study, scheduledAt: day)
+
+    let session = try await agenda.startActivity(id: activity.id, now: day)
+
+    #expect(session != nil)
+    #expect(session?.pomodoroLengthMinutes == 25)
+    #expect((session?.supportMaterial.count ?? 0) > 0)
+}
+
+@Test("Trivia muestra game over al primer fallo después de 5 aciertos")
+func triviaGameOverAfterFiveCorrectAndOneFail() async throws {
+    let baseDate = Date(timeIntervalSince1970: 1_710_259_200)
+    let service = MentalTrainerService(
+        intelligence: MockIntelligence(questionCount: 10),
+        dateProvider: FixedDateProvider(now: baseDate)
+    )
+
+    _ = try await service.startSession(questionCount: 10)
+    for second in 0..<5 {
+        let feedback = await service.submitAnswer(optionIndex: 0, answeredAt: baseDate.addingTimeInterval(Double(second)))
+        #expect(feedback?.isCorrect == true)
+        #expect(feedback?.isGameOver == false)
+    }
+
+    let failFeedback = await service.submitAnswer(optionIndex: 1, answeredAt: baseDate.addingTimeInterval(6))
+    #expect(failFeedback?.isCorrect == false)
+    #expect(failFeedback?.isGameOver == true)
+}
+
+@Test("Notificación cambia según haya actividades o no")
+func notificationPlannerMessages() async throws {
+    let planner = NotificationPlanner()
+    let withoutActivities = planner.reminderForDay(activities: [])
+    let withActivities = planner.reminderForDay(activities: [
+        Activity(title: "Tarea", topic: "Tema", type: .task, scheduledAt: .now)
+    ])
+
+    #expect(withoutActivities.body.contains("Entrenador Mental"))
+    #expect(withActivities.body.contains("entrenamiento rápido"))
+}
+
+private struct MockIntelligence: AppleIntelligenceProviding {
+    let questionCount: Int
+
+    init(questionCount: Int = 4) {
+        self.questionCount = questionCount
+    }
+
+    func supportMaterial(for topic: String, type: ActivityType) async throws -> [String] {
+        ["Guía rápida de \(topic)", "Ejercicios sobre \(topic)"]
+    }
+
+    func triviaQuestions(
+        count: Int,
+        categories: [TriviaCategory],
+        difficulty: Int
+    ) async throws -> [TriviaQuestion] {
+        let total = max(count, questionCount)
+        return (0..<total).map { index in
+            TriviaQuestion(
+                category: categories[index % max(categories.count, 1)],
+                prompt: "Pregunta \(index)",
+                options: ["A", "B", "C", "D"],
+                correctOptionIndex: 0
+            )
+        }
+    }
+}
+
+private struct FixedDateProvider: DateProviding {
+    let now: Date
 }
