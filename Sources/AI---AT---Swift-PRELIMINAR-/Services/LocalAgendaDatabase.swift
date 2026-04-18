@@ -6,17 +6,24 @@ public struct LocalAgendaDatabase: AgendaPersistenceProviding {
     public init(
         fileURL: URL? = nil
     ) {
-        self.init(fileURL: fileURL, fileManager: .default)
+        self.fileURL = Self.resolveFileURL(fileURL: fileURL, fileManager: .default)
     }
 
+    /// Compatibility initializer.
+    /// - Important: `fileManager` is used only to resolve the default database path when `fileURL` is `nil`.
+    @available(*, deprecated, message: "Use init(fileURL:) instead. fileManager is only used to resolve default path when fileURL is nil.")
     public init(
         fileURL: URL? = nil,
         fileManager: FileManager
     ) {
+        self.fileURL = Self.resolveFileURL(fileURL: fileURL, fileManager: fileManager)
+    }
+
+    private static func resolveFileURL(fileURL: URL?, fileManager: FileManager) -> URL {
         let baseURL = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
             ?? fileManager.temporaryDirectory
         let directoryURL = baseURL.appendingPathComponent("AcademicTrainer", isDirectory: true)
-        self.fileURL = fileURL ?? directoryURL.appendingPathComponent("agenda.json")
+        return fileURL ?? directoryURL.appendingPathComponent("agenda.json")
     }
 
     public func load() throws -> AgendaStorageSnapshot? {
