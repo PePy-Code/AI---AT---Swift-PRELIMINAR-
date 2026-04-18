@@ -229,7 +229,7 @@ public struct FoundationModelsLocalAgent: LocalAcademicAgentProviding {
         }
         """
         let response = try await session.respond(to: prompt)
-        return LocalAgentResponseParser.parseSupportMaterial(from: response, limit: 3)
+        return LocalAgentResponseParser.parseSupportMaterial(from: response.content, limit: 3)
     }
 
     public func chatReply(
@@ -252,7 +252,7 @@ public struct FoundationModelsLocalAgent: LocalAcademicAgentProviding {
         Mensaje del estudiante: "\(userMessage)"
         """
         let response = try await session.respond(to: prompt)
-        return response.trimmingCharacters(in: .whitespacesAndNewlines)
+        return response.content.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     public func triviaQuestions(
@@ -289,7 +289,7 @@ public struct FoundationModelsLocalAgent: LocalAcademicAgentProviding {
         """
         let response = try await session.respond(to: prompt)
         return LocalAgentResponseParser.parseTriviaQuestions(
-            from: response,
+            from: response.content,
             categories: validatedCategories,
             limit: validatedCount
         )
