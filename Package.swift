@@ -11,12 +11,20 @@ let package = Package(
             name: "AI---AT---Swift-PRELIMINAR-",
             targets: ["AI---AT---Swift-PRELIMINAR-"]
         ),
+        .executable(
+            name: "AcademicTrainerApp",
+            targets: ["AcademicTrainerApp"]
+        ),
     ],
     targets: [
         // Targets are the basic building blocks of a package, defining a module or a test suite.
         // Targets can depend on other targets in this package and products from dependencies.
         .target(
             name: "AI---AT---Swift-PRELIMINAR-"
+        ),
+        .executableTarget(
+            name: "AcademicTrainerApp",
+            dependencies: ["AI---AT---Swift-PRELIMINAR-"]
         ),
         .testTarget(
             name: "AI---AT---Swift-PRELIMINAR-Tests",

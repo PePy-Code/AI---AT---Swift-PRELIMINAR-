@@ -16,3 +16,17 @@ Entrenador académico para iOS con el propósito de apoyar a estudiantes con pro
   - recordatorios diarios según agenda,
   - mensajes motivacionales para impulsar entrenamiento mental.
 - Pruebas unitarias para reglas de racha, trivia, agenda y notificaciones.
+
+## Ejecutar en simulador de Xcode
+
+1. Abre el paquete con Xcode (`File > Open...`) apuntando a este repositorio.
+2. Selecciona el esquema **AcademicTrainerApp**.
+3. Elige un simulador iOS (por ejemplo iPhone 16).
+4. Ejecuta con `Run` (⌘R).
+
+La app inicia en `HomeView` y desde ahí puedes probar:
+- botón rápido `+` del menú principal,
+- inicio de actividad con flujo `Finalizar/Pendiente`,
+- popups encadenados de finalización,
+- Pomodoro trabajo/descanso,
+- chatbot con guardrails para no resolver tareas directamente.
