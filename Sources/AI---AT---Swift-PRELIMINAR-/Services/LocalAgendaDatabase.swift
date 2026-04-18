@@ -4,9 +4,9 @@ public struct LocalAgendaDatabase: AgendaPersistenceProviding {
     private let fileURL: URL
 
     public init(
-        fileURL: URL? = nil,
-        fileManager: FileManager = .default
+        fileURL: URL? = nil
     ) {
+        let fileManager = FileManager.default
         let baseURL = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
             ?? fileManager.temporaryDirectory
         let directoryURL = baseURL.appendingPathComponent("AcademicTrainer", isDirectory: true)
