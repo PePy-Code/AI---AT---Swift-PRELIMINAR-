@@ -2,17 +2,25 @@ import Foundation
 
 public actor AgendaService {
     private let intelligence: AppleIntelligenceProviding
+    private let persistence: AgendaPersistenceProviding?
     private(set) var activities: [Activity]
     private(set) var sessions: [ActivitySession]
 
     public init(
         intelligence: AppleIntelligenceProviding = AppleIntelligenceService(),
         activities: [Activity] = [],
-        sessions: [ActivitySession] = []
+        sessions: [ActivitySession] = [],
+        persistence: AgendaPersistenceProviding? = nil
     ) {
         self.intelligence = intelligence
-        self.activities = activities
-        self.sessions = sessions
+        self.persistence = persistence
+        if let persistence, let snapshot = try? persistence.load() {
+            self.activities = snapshot.activities
+            self.sessions = snapshot.sessions
+        } else {
+            self.activities = activities
+            self.sessions = sessions
+        }
     }
 
     @discardableResult
@@ -24,6 +32,7 @@ public actor AgendaService {
     ) -> Activity {
         let activity = Activity(title: title, topic: topic, type: type, scheduledAt: scheduledAt)
         activities.append(activity)
+        persist()
         return activity
     }
 
@@ -35,6 +44,7 @@ public actor AgendaService {
     public func updateActivity(_ activity: Activity) -> Bool {
         guard let index = activities.firstIndex(where: { $0.id == activity.id }) else { return false }
         activities[index] = activity
+        persist()
         return true
     }
 
@@ -42,6 +52,7 @@ public actor AgendaService {
     public func completeActivity(id: UUID) -> Bool {
         guard let index = activities.firstIndex(where: { $0.id == id }) else { return false }
         activities[index].status = .completed
+        persist()
         return true
     }
 
@@ -49,6 +60,7 @@ public actor AgendaService {
     public func markActivityPending(id: UUID) -> Bool {
         guard let index = activities.firstIndex(where: { $0.id == id }) else { return false }
         activities[index].status = .pending
+        persist()
         return true
     }
 
@@ -56,7 +68,11 @@ public actor AgendaService {
     public func deleteActivity(id: UUID) -> Bool {
         let before = activities.count
         activities.removeAll { $0.id == id }
-        return activities.count != before
+        let changed = activities.count != before
+        if changed {
+            persist()
+        }
+        return changed
     }
 
     public func startActivity(id: UUID, now: Date = Date()) async throws -> ActivitySession? {
@@ -78,6 +94,13 @@ public actor AgendaService {
             supportMaterial: material
         )
         sessions.append(session)
+        persist()
         return session
+    }
+
+    private func persist() {
+        guard let persistence else { return }
+        let snapshot = AgendaStorageSnapshot(activities: activities, sessions: sessions)
+        try? persistence.save(snapshot)
     }
 }

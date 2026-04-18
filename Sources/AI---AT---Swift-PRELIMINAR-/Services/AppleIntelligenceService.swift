@@ -2,12 +2,21 @@ import Foundation
 
 public struct AppleIntelligenceService: AppleIntelligenceProviding {
     private let fallback = LocalFallbackGenerator()
+    private let localAgent: LocalAcademicAgentProviding?
 
-    public init() {}
+    public init(localAgent: LocalAcademicAgentProviding? = nil) {
+        self.localAgent = localAgent
+    }
 
     public func supportMaterial(for topic: String, type: ActivityType) async throws -> [String] {
         let safeTopic = topic.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !safeTopic.isEmpty else { return fallback.defaultSupportMaterial(for: "tema general") }
+
+        if let localAgent,
+           let localResult = try? await localAgent.supportMaterial(for: safeTopic, type: type),
+           !localResult.isEmpty {
+            return localResult
+        }
 
         switch type {
         case .task, .study:
@@ -25,6 +34,17 @@ public struct AppleIntelligenceService: AppleIntelligenceProviding {
         let validatedCount = max(1, count)
         let validatedCategories = categories.isEmpty ? TriviaCategory.allCases : categories
         let validatedDifficulty = min(max(difficulty, 1), 5)
+
+        if let localAgent,
+           let localQuestions = try? await localAgent.triviaQuestions(
+               count: validatedCount,
+               categories: validatedCategories,
+               difficulty: validatedDifficulty
+           ),
+           !localQuestions.isEmpty {
+            return localQuestions
+        }
+
         return fallback.defaultQuestions(
             count: validatedCount,
             categories: validatedCategories,

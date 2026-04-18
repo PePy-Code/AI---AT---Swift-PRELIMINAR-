@@ -63,6 +63,51 @@ func agendaCanMarkPendingAfterCompletion() async throws {
     #expect(updated?.status == .pending)
 }
 
+@Test("Persistencia local de agenda guarda y recarga actividades")
+func localAgendaDatabasePersistsData() async throws {
+    let tempFile = FileManager.default.temporaryDirectory
+        .appendingPathComponent(UUID().uuidString)
+        .appendingPathComponent("agenda-test.json")
+    let database = LocalAgendaDatabase(fileURL: tempFile)
+
+    let day = Date(timeIntervalSince1970: 1_710_172_800)
+    let activity = Activity(title: "Persistir", topic: "Tema", type: .task, status: .completed, scheduledAt: day)
+    let session = ActivitySession(activityID: activity.id, startedAt: day, endedAt: day.addingTimeInterval(60))
+    let snapshot = AgendaStorageSnapshot(activities: [activity], sessions: [session])
+
+    try database.save(snapshot)
+    let loaded = try database.load()
+
+    #expect(loaded == snapshot)
+}
+
+@Test("AgendaService usa snapshot local al inicializar")
+func agendaServiceLoadsFromPersistenceSnapshot() async throws {
+    let tempFile = FileManager.default.temporaryDirectory
+        .appendingPathComponent(UUID().uuidString)
+        .appendingPathComponent("agenda-load-test.json")
+    let database = LocalAgendaDatabase(fileURL: tempFile)
+    let day = Date(timeIntervalSince1970: 1_710_172_800)
+    let persistedActivity = Activity(
+        title: "Desde DB",
+        topic: "Persistencia",
+        type: .study,
+        status: .pending,
+        scheduledAt: day
+    )
+    try database.save(AgendaStorageSnapshot(activities: [persistedActivity], sessions: []))
+
+    let service = AgendaService(
+        intelligence: MockIntelligence(),
+        activities: [],
+        sessions: [],
+        persistence: database
+    )
+    let loaded = await service.listActivities(on: day)
+
+    #expect(loaded.contains(where: { $0.id == persistedActivity.id }))
+}
+
 @Test("Trivia muestra game over al primer fallo después de 5 aciertos")
 func triviaGameOverAfterFiveCorrectAndOneFail() async throws {
     let baseDate = Date(timeIntervalSince1970: 1_710_259_200)
