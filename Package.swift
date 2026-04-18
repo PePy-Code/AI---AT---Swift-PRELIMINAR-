@@ -2,6 +2,9 @@
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
+#if canImport(AppleProductTypes)
+import AppleProductTypes
+#endif
 
 var products: [Product] = [
     // Products define the executables and libraries a package produces, making them visible to other packages.
@@ -15,7 +18,7 @@ var products: [Product] = [
     ),
 ]
 
-#if os(macOS) && compiler(>=6.3)
+#if canImport(AppleProductTypes)
 products.append(
     .iOSApplication(
         name: "AcademicTraineriOS",
