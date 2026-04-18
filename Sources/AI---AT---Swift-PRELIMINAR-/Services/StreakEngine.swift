@@ -27,11 +27,13 @@ public struct StreakEngine {
         }
 
         guard incrementsStreak else {
-            return StreakState(days: 0, lastValidatedDay: dayStart, reason: reason)
+            return StreakState(days: current.days, lastValidatedDay: current.lastValidatedDay, reason: reason)
         }
 
         if let last = current.lastValidatedDay, calendar.isDate(last, inSameDayAs: dayStart) {
-            return StreakState(days: current.days, lastValidatedDay: dayStart, reason: reason)
+            if current.reason == .allScheduledActivitiesCompleted || current.reason == .mentalTrainingOnNoAgendaDay {
+                return StreakState(days: current.days, lastValidatedDay: dayStart, reason: reason)
+            }
         }
 
         if let last = current.lastValidatedDay,

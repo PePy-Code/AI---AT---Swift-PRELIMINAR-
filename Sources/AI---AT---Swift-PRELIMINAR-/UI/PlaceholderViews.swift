@@ -3,6 +3,9 @@ import SwiftUI
 #if canImport(PhotosUI)
 import PhotosUI
 #endif
+#if canImport(AudioToolbox)
+import AudioToolbox
+#endif
 
 public struct HomeView: View {
     @State private var todayActivities: [Activity] = []
@@ -60,25 +63,34 @@ public struct HomeView: View {
                             .stroke(Color(.separator), lineWidth: 1)
                     )
 
-                    menuAgendaTable
-
-                    HStack {
-                        Spacer()
+                    HStack(spacing: 10) {
                         Button {
                             showQuickAddActivity = true
                         } label: {
-                            Image(systemName: "plus")
-                                .font(.headline)
-                                .frame(width: 36, height: 36)
+                            Label("Nueva actividad", systemImage: "plus.circle.fill")
+                                .font(.subheadline.weight(.semibold))
+                                .frame(maxWidth: .infinity)
                         }
                         .buttonStyle(.borderedProminent)
-                        .clipShape(Circle())
-                        .accessibilityLabel("Agregar actividad rápida")
+
+                        Button {
+                            openWeeklyAgenda = true
+                        } label: {
+                            Label("Agenda completa", systemImage: "calendar.badge.clock")
+                                .font(.subheadline.weight(.semibold))
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.bordered)
                     }
+
+                    menuAgendaTable
                 }
                 .padding()
             }
             .navigationTitle("Menú principal")
+            .onAppear {
+                Task { await refreshSummary() }
+            }
             .task {
                 guard !hasLoaded else { return }
                 hasLoaded = true
@@ -124,7 +136,12 @@ public struct HomeView: View {
                 WeeklyAgendaView(agendaService: agendaService)
             }
             .navigationDestination(item: $activeActivity) { activity in
-                ActivityLaunchPlaceholderView(activity: activity)
+                ActivityLaunchPlaceholderView(
+                    activity: activity,
+                    onDidUpdateActivityState: {
+                        Task { await refreshSummary() }
+                    }
+                )
             }
             .sheet(isPresented: $showQuickAddActivity) {
                 AddActivitySheet(
@@ -185,12 +202,17 @@ public struct HomeView: View {
             Button {
                 pendingStartActivity = activity
             } label: {
-                Text(activity.title)
-                    .lineLimit(1)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(6)
-                    .background(Color(.tertiarySystemBackground))
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                HStack(spacing: 6) {
+                    Circle()
+                        .fill(statusColor(for: activity.status))
+                        .frame(width: 8, height: 8)
+                    Text(activity.title)
+                        .lineLimit(1)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .padding(6)
+                .background(statusColor(for: activity.status).opacity(0.2))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
             }
             .buttonStyle(.plain)
             .onLongPressGesture(minimumDuration: 0.8) {
@@ -211,9 +233,14 @@ public struct HomeView: View {
         let tomorrow = nextDay
         let activities = await agendaService.listActivities(on: today)
         let tomorrowItems = await agendaService.listActivities(on: tomorrow)
+        let validMentalTrainingCompletions = MentalTrainingStreakStore.completionCount(on: today, calendar: calendar)
         let updated = streakEngine.evaluate(
             current: streakState,
-            input: DailyEvaluationInput(day: today, scheduledActivities: activities, validMentalTrainingCompletions: 0)
+            input: DailyEvaluationInput(
+                day: today,
+                scheduledActivities: activities,
+                validMentalTrainingCompletions: validMentalTrainingCompletions
+            )
         )
         await MainActor.run {
             self.todayActivities = activities
@@ -274,10 +301,26 @@ public struct HomeView: View {
         }
         return "Paso a paso: inicia una actividad y enfócate unos minutos."
     }
+
+    private func statusColor(for status: ActivityStatus) -> Color {
+        switch status {
+        case .completed:
+            return .green
+        case .pending:
+            return .yellow
+        case .notStarted:
+            return .gray.opacity(0.8)
+        case .failed:
+            return .red
+        case .inProgress:
+            return .blue
+        }
+    }
 }
 
 private struct ActivityLaunchPlaceholderView: View {
     let activity: Activity
+    let onDidUpdateActivityState: () -> Void
     private static let restrictedRequestTokens = [
         "resuelve", "hazme la tarea", "haz la tarea",
         "dame la respuesta", "responde por mí", "hazlo por mí", "solve"
@@ -290,8 +333,10 @@ private struct ActivityLaunchPlaceholderView: View {
     @State private var finishAlertStep: FinishAlertStep?
     @State private var streakDays = 0
     @State private var navigateToTrainer = false
+    @State private var shouldShowStreakPopup = false
+    @State private var pomodoroTransitionAlert: PomodoroTransitionAlert?
     @State private var remainingSeconds = 25 * 60
-    @State private var isRunning = false
+    @State private var isRunning = true
     @State private var isWorkPhase = true
     private let ticker = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
     private let agendaService = AgendaService(persistence: LocalAgendaDatabase())
@@ -334,6 +379,12 @@ private struct ActivityLaunchPlaceholderView: View {
                 isWorkPhase.toggle()
                 remainingSeconds = isWorkPhase ? 25 * 60 : 5 * 60
                 isRunning = true
+                pomodoroTransitionAlert = PomodoroTransitionAlert(
+                    message: isWorkPhase
+                        ? "Descanso finalizado. Inicia un nuevo bloque de trabajo."
+                        : "Trabajo finalizado. Inicia tu descanso corto."
+                )
+                playPomodoroTransitionSound()
             }
         }
         .alert(item: $finishAlertStep) { step in
@@ -352,7 +403,11 @@ private struct ActivityLaunchPlaceholderView: View {
                     title: Text("¡Felicidades!"),
                     message: Text("Terminaste \(activity.title)."),
                     dismissButton: .default(Text("Continuar")) {
-                        finishAlertStep = .streak
+                        if shouldShowStreakPopup {
+                            finishAlertStep = .streak
+                        } else {
+                            dismiss()
+                        }
                     }
                 )
             case .streak:
@@ -375,6 +430,13 @@ private struct ActivityLaunchPlaceholderView: View {
                     }
                 )
             }
+        }
+        .alert(item: $pomodoroTransitionAlert) { alert in
+            Alert(
+                title: Text("Pomodoro"),
+                message: Text(alert.message),
+                dismissButton: .default(Text("OK"))
+            )
         }
         .navigationDestination(isPresented: $navigateToTrainer) {
             MentalTrainerView()
@@ -548,14 +610,17 @@ private struct ActivityLaunchPlaceholderView: View {
         if isRestrictedRequest(text) {
             return "Lo siento compañero, no puedo ayudarte con este tipo de solicitudes. Pero aquí hay algunas fuentes que podrían ayudarte:\(bulletText)"
         }
-        switch activity.type {
-        case .task:
-            return "Buena pregunta. Para tu tarea de \"\(activity.title)\", te sugiero organizar primero una idea central y luego contrastarla con fuentes confiables.\(bulletText)"
-        case .study:
-            return "Perfecto, sigamos reforzando tu estudio de \"\(activity.title)\". Si quieres, te hago preguntas cortas para practicar.\(bulletText)"
-        case .other:
-            return "Vamos bien. Aquí tienes apoyo para continuar:\(bulletText)"
+        let modelReply = (try? await intelligence.chatReply(
+            userMessage: text,
+            activityTitle: activity.title,
+            topic: normalizedTopic,
+            type: activity.type
+        )) ?? ""
+        let cleaned = modelReply.trimmingCharacters(in: .whitespacesAndNewlines)
+        if cleaned.isEmpty {
+            return "Vamos paso a paso con tu actividad. Primero identifica la meta principal y luego avanza por partes pequeñas.\(bulletText)"
         }
+        return cleaned + bulletText
     }
 
     private func isRestrictedRequest(_ text: String) -> Bool {
@@ -599,14 +664,19 @@ private struct ActivityLaunchPlaceholderView: View {
     private func markPendingAndExit() async {
         _ = await agendaService.markActivityPending(id: activity.id)
         await MainActor.run {
+            onDidUpdateActivityState()
             dismiss()
         }
     }
 
     private func completeAndStartFinishFlow() async {
         _ = await agendaService.completeActivity(id: activity.id)
-        let streak = await computeStreakDays()
+        let todaysActivities = await agendaService.listActivities(on: Date(), calendar: calendar)
+        let shouldShowStreak = !todaysActivities.isEmpty && todaysActivities.allSatisfy { $0.status == .completed }
+        let streak = shouldShowStreak ? await computeStreakDays() : 0
         await MainActor.run {
+            onDidUpdateActivityState()
+            shouldShowStreakPopup = shouldShowStreak
             streakDays = streak
             finishAlertStep = .congrats
         }
@@ -638,6 +708,12 @@ private struct ActivityLaunchPlaceholderView: View {
         let seconds = max(totalSeconds, 0) % 60
         return String(format: "%02d:%02d", minutes, seconds)
     }
+
+    private func playPomodoroTransitionSound() {
+        #if canImport(AudioToolbox)
+        AudioServicesPlaySystemSound(1005)
+        #endif
+    }
 }
 
 private enum FinishAlertStep: String, Identifiable {
@@ -659,6 +735,11 @@ private struct ActivityChatMessage: Identifiable {
     let role: Role
     let text: String
     var isImageAttachment: Bool = false
+}
+
+private struct PomodoroTransitionAlert: Identifiable {
+    let id = UUID()
+    let message: String
 }
 
 private struct ActivityEditSheet: View {
@@ -757,6 +838,7 @@ private struct WeeklyAgendaView: View {
     @State private var weekStart: Date
     @State private var weekActivities: [Activity] = []
     @State private var showAddActivity = false
+    @State private var editingActivity: Activity?
     private let calendar = Calendar.current
 
     init(agendaService: AgendaService) {
@@ -815,8 +897,17 @@ private struct WeeklyAgendaView: View {
                                     } else {
                                         VStack(alignment: .leading, spacing: 2) {
                                             ForEach(activities.prefix(2)) { activity in
-                                                Text(activity.title)
+                                                Text("\(activity.title) • \(statusLabel(for: activity.status))")
                                                     .lineLimit(1)
+                                                    .padding(.horizontal, 6)
+                                                    .padding(.vertical, 3)
+                                                    .background(statusColor(for: activity.status).opacity(0.2))
+                                                    .foregroundStyle(statusColor(for: activity.status))
+                                                    .clipShape(Capsule())
+                                                    .contentShape(Rectangle())
+                                                    .onLongPressGesture(minimumDuration: 0.8) {
+                                                        editingActivity = activity
+                                                    }
                                             }
                                         }
                                         .font(.caption)
@@ -852,10 +943,22 @@ private struct WeeklyAgendaView: View {
         .sheet(isPresented: $showAddActivity) {
             AddActivitySheet(
                 agendaService: agendaService,
-                defaultDate: weekStart
+                defaultDate: Date()
             ) {
                 Task { await loadWeekActivities() }
             }
+        }
+        .sheet(item: $editingActivity) { activity in
+            ActivityEditSheet(
+                agendaService: agendaService,
+                activity: activity,
+                onDidSave: {
+                    Task { await loadWeekActivities() }
+                },
+                onDidDelete: {
+                    Task { await loadWeekActivities() }
+                }
+            )
         }
     }
 
@@ -902,6 +1005,36 @@ private struct WeeklyAgendaView: View {
         let formatter = DateFormatter()
         formatter.dateFormat = "EEE dd/MM"
         return formatter.string(from: day)
+    }
+
+    private func statusLabel(for status: ActivityStatus) -> String {
+        switch status {
+        case .completed:
+            return "Finalizado"
+        case .pending:
+            return "Pendiente"
+        case .notStarted:
+            return "Por hacer"
+        case .failed:
+            return "Fallida"
+        case .inProgress:
+            return "En progreso"
+        }
+    }
+
+    private func statusColor(for status: ActivityStatus) -> Color {
+        switch status {
+        case .completed:
+            return .green
+        case .pending:
+            return .yellow
+        case .notStarted:
+            return .gray.opacity(0.8)
+        case .failed:
+            return .red
+        case .inProgress:
+            return .blue
+        }
     }
 
     private static func normalizedStartOfWeek(from date: Date, calendar: Calendar) -> Date {
@@ -1210,23 +1343,31 @@ public struct AgendaView: View {
 
     private func statusLabel(for status: ActivityStatus) -> String {
         switch status {
+        case .notStarted:
+            "Por hacer"
         case .pending:
             "Pendiente"
         case .inProgress:
             "En progreso"
         case .completed:
-            "Realizada"
+            "Finalizado"
+        case .failed:
+            "Fallida"
         }
     }
 
     private func statusColor(for status: ActivityStatus) -> Color {
         switch status {
+        case .notStarted:
+            .gray.opacity(0.8)
         case .pending:
-            .orange
+            .yellow
         case .inProgress:
             .blue
         case .completed:
             .green
+        case .failed:
+            .red
         }
     }
 }
@@ -1536,6 +1677,7 @@ public struct MentalTrainerView: View {
                 isGameOver = true
                 sessionCompleted = true
                 isLoading = false
+                MentalTrainingStreakStore.registerCompletion(on: Date())
                 return
             }
 
@@ -1551,6 +1693,7 @@ public struct MentalTrainerView: View {
                 currentQuestion = nil
                 sessionCompleted = true
                 isLoading = false
+                MentalTrainingStreakStore.registerCompletion(on: Date())
                 if feedbackMessage == nil {
                     feedbackMessage = "Sesión finalizada."
                     feedbackColor = .green
@@ -1561,6 +1704,29 @@ public struct MentalTrainerView: View {
 
     private func remainingSeconds(until deadline: Date) -> Int {
         max(Int(deadline.timeIntervalSinceNow.rounded(.down)), 0)
+    }
+}
+
+private enum MentalTrainingStreakStore {
+    private static let defaults = UserDefaults.standard
+    private static let keyPrefix = "mental-training-completions-"
+
+    static func registerCompletion(on day: Date, calendar: Calendar = .current) {
+        let key = keyForDay(day, calendar: calendar)
+        let current = defaults.integer(forKey: key)
+        defaults.set(current + 1, forKey: key)
+    }
+
+    static func completionCount(on day: Date, calendar: Calendar = .current) -> Int {
+        defaults.integer(forKey: keyForDay(day, calendar: calendar))
+    }
+
+    private static func keyForDay(_ day: Date, calendar: Calendar) -> String {
+        let components = calendar.dateComponents([.year, .month, .day], from: day)
+        let year = components.year ?? 0
+        let month = components.month ?? 0
+        let date = components.day ?? 0
+        return keyPrefix + String(format: "%04d-%02d-%02d", year, month, date)
     }
 }
 #endif

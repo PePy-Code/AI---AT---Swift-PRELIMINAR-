@@ -7,9 +7,11 @@ public enum ActivityType: String, Codable, Sendable, CaseIterable {
 }
 
 public enum ActivityStatus: String, Codable, Sendable {
+    case notStarted
     case pending
     case inProgress
     case completed
+    case failed
 }
 
 public struct Activity: Identifiable, Codable, Sendable, Equatable {
@@ -25,7 +27,7 @@ public struct Activity: Identifiable, Codable, Sendable, Equatable {
         title: String,
         topic: String,
         type: ActivityType,
-        status: ActivityStatus = .pending,
+        status: ActivityStatus = .notStarted,
         scheduledAt: Date
     ) {
         self.id = id

@@ -52,7 +52,7 @@ func agendaStartTaskReturnsSupportMaterial() async throws {
 @Test("Actividad puede volver a pendiente desde flujo pomodoro")
 func agendaCanMarkPendingAfterCompletion() async throws {
     let agenda = AgendaService(intelligence: MockIntelligence())
-    let day = Date(timeIntervalSince1970: 1_710_172_800)
+    let day = Date().addingTimeInterval(3_600)
     let activity = await agenda.createActivity(title: "Repaso", topic: "Álgebra", type: .task, scheduledAt: day)
 
     _ = await agenda.completeActivity(id: activity.id)
@@ -106,6 +106,23 @@ func agendaServiceLoadsFromPersistenceSnapshot() async throws {
     let loaded = await service.listActivities(on: day)
 
     #expect(loaded.contains(where: { $0.id == persistedActivity.id }))
+}
+
+@Test("Actividad vencida sin iniciar pasa a fallida")
+func overdueNotStartedActivityBecomesFailed() async throws {
+    let agenda = AgendaService(intelligence: MockIntelligence())
+    let oldDate = Date().addingTimeInterval(-7_200)
+    let activity = await agenda.createActivity(
+        title: "Pendiente vieja",
+        topic: "Repaso",
+        type: .study,
+        scheduledAt: oldDate
+    )
+
+    let listed = await agenda.listActivities(on: oldDate)
+    let updated = listed.first(where: { $0.id == activity.id })
+
+    #expect(updated?.status == .failed)
 }
 
 @Test("Trivia muestra game over al primer fallo después de 5 aciertos")
@@ -237,6 +254,15 @@ private struct MockIntelligence: AppleIntelligenceProviding {
 
     func supportMaterial(for topic: String, type: ActivityType) async throws -> [String] {
         ["Guía rápida de \(topic)", "Ejercicios sobre \(topic)"]
+    }
+
+    func chatReply(
+        userMessage: String,
+        activityTitle: String,
+        topic: String,
+        type: ActivityType
+    ) async throws -> String {
+        "Respuesta de apoyo para \(activityTitle): \(userMessage)"
     }
 
     func triviaQuestions(

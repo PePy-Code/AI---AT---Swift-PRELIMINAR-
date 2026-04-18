@@ -2,6 +2,12 @@ import Foundation
 
 public protocol AppleIntelligenceProviding: Sendable {
     func supportMaterial(for topic: String, type: ActivityType) async throws -> [String]
+    func chatReply(
+        userMessage: String,
+        activityTitle: String,
+        topic: String,
+        type: ActivityType
+    ) async throws -> String
     func triviaQuestions(
         count: Int,
         categories: [TriviaCategory],
@@ -11,6 +17,12 @@ public protocol AppleIntelligenceProviding: Sendable {
 
 public protocol LocalAcademicAgentProviding: Sendable {
     func supportMaterial(for topic: String, type: ActivityType) async throws -> [String]
+    func chatReply(
+        userMessage: String,
+        activityTitle: String,
+        topic: String,
+        type: ActivityType
+    ) async throws -> String
     func triviaQuestions(
         count: Int,
         categories: [TriviaCategory],

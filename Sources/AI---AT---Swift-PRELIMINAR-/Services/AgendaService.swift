@@ -32,18 +32,21 @@ public actor AgendaService {
     ) -> Activity {
         let activity = Activity(title: title, topic: topic, type: type, scheduledAt: scheduledAt)
         activities.append(activity)
+        reconcileFailedActivities(now: Date())
         persist()
         return activity
     }
 
     public func listActivities(on day: Date, calendar: Calendar = .current) -> [Activity] {
-        activities.filter { calendar.isDate($0.scheduledAt, inSameDayAs: day) }
+        reconcileFailedActivities(now: Date())
+        return activities.filter { calendar.isDate($0.scheduledAt, inSameDayAs: day) }
     }
 
     @discardableResult
     public func updateActivity(_ activity: Activity) -> Bool {
         guard let index = activities.firstIndex(where: { $0.id == activity.id }) else { return false }
         activities[index] = activity
+        reconcileFailedActivities(now: Date())
         persist()
         return true
     }
@@ -52,6 +55,7 @@ public actor AgendaService {
     public func completeActivity(id: UUID) -> Bool {
         guard let index = activities.firstIndex(where: { $0.id == id }) else { return false }
         activities[index].status = .completed
+        reconcileFailedActivities(now: Date())
         persist()
         return true
     }
@@ -60,6 +64,7 @@ public actor AgendaService {
     public func markActivityPending(id: UUID) -> Bool {
         guard let index = activities.firstIndex(where: { $0.id == id }) else { return false }
         activities[index].status = .pending
+        reconcileFailedActivities(now: Date())
         persist()
         return true
     }
@@ -76,6 +81,7 @@ public actor AgendaService {
     }
 
     public func startActivity(id: UUID, now: Date = Date()) async throws -> ActivitySession? {
+        reconcileFailedActivities(now: now)
         guard let index = activities.firstIndex(where: { $0.id == id }) else { return nil }
         activities[index].status = .inProgress
         let activity = activities[index]
@@ -96,6 +102,20 @@ public actor AgendaService {
         sessions.append(session)
         persist()
         return session
+    }
+
+    private func reconcileFailedActivities(now: Date) {
+        var hasChanges = false
+        for index in activities.indices {
+            let activity = activities[index]
+            guard activity.scheduledAt < now else { continue }
+            guard activity.status == .notStarted || activity.status == .pending else { continue }
+            activities[index].status = .failed
+            hasChanges = true
+        }
+        if hasChanges {
+            persist()
+        }
     }
 
     private func persist() {

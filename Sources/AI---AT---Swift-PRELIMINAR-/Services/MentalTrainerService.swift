@@ -45,11 +45,12 @@ public actor MentalTrainerService {
 
     public func startSession(questionCount: Int = 10) async throws -> ActiveTriviaSession {
         let now = dateProvider.now
-        let questions = try await intelligence.triviaQuestions(
+        let generated = try await intelligence.triviaQuestions(
             count: questionCount,
             categories: TriviaCategory.allCases,
             difficulty: 2
         )
+        let questions = generated.shuffled()
         let attempt = TriviaAttempt(startedAt: now, highestGlobalScore: highestGlobalScore)
         let session = ActiveTriviaSession(
             attempt: attempt,

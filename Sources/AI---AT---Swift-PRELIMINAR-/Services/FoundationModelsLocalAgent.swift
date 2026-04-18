@@ -152,6 +152,29 @@ public struct FoundationModelsLocalAgent: LocalAcademicAgentProviding {
         return LocalAgentResponseParser.parseSupportMaterial(from: response, limit: 3)
     }
 
+    public func chatReply(
+        userMessage: String,
+        activityTitle: String,
+        topic: String,
+        type: ActivityType
+    ) async throws -> String {
+        let session = LanguageModelSession()
+        let prompt = """
+        Eres un tutor académico para jóvenes de 15+.
+        Responde en español y en máximo 4 líneas.
+        REGLAS:
+        - No resuelvas tareas directamente ni entregues respuestas finales.
+        - Da orientación, pasos y sugerencias prácticas.
+        Contexto:
+        - Actividad: "\(activityTitle)"
+        - Tema: "\(topic)"
+        - Tipo: "\(type.rawValue)"
+        Mensaje del estudiante: "\(userMessage)"
+        """
+        let response = try await session.respond(to: prompt)
+        return response.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     public func triviaQuestions(
         count: Int,
         categories: [TriviaCategory],

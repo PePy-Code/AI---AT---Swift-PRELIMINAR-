@@ -26,6 +26,37 @@ public struct AppleIntelligenceService: AppleIntelligenceProviding {
         }
     }
 
+    public func chatReply(
+        userMessage: String,
+        activityTitle: String,
+        topic: String,
+        type: ActivityType
+    ) async throws -> String {
+        let cleanedMessage = userMessage.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanedTopic = topic.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanedTitle = activityTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        if let localAgent,
+           let reply = try? await localAgent.chatReply(
+               userMessage: cleanedMessage,
+               activityTitle: cleanedTitle,
+               topic: cleanedTopic,
+               type: type
+           ),
+           !reply.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return reply
+        }
+
+        switch type {
+        case .task:
+            return "Buena pregunta. Para \"\(cleanedTitle)\", identifica primero la idea principal, luego susténtala con una fuente confiable y cierra con una conclusión breve."
+        case .study:
+            return "Vamos bien con \"\(cleanedTitle)\". Te recomiendo: 1) resumir el concepto clave, 2) hacer un ejemplo corto, 3) verificar con una pregunta de práctica."
+        case .other:
+            return "Para avanzar en \"\(cleanedTitle)\", divide el objetivo en pasos pequeños, completa uno por vez y valida el resultado antes de continuar."
+        }
+    }
+
     public func triviaQuestions(
         count: Int,
         categories: [TriviaCategory],
