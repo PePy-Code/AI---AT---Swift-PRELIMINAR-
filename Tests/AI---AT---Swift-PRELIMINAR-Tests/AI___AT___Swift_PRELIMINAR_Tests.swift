@@ -138,6 +138,38 @@ func notificationPlannerMessages() async throws {
 
     #expect(withoutActivities.body.contains("Entrenador Mental"))
     #expect(withActivities.body.contains("entrenamiento rápido"))
+    #expect(planner.pomodoroFinishReminder(activityTitle: "Repaso").title.contains("Pomodoro"))
+    #expect(planner.mentalTrainingMotivation(streakDays: 3).body.contains("racha"))
+    #expect(planner.mentalTrainingMotivation(streakDays: 0).title.contains("enfoque"))
+}
+
+@Test("Servicio de notificaciones agenda recordatorio, motivación y temporizador")
+func engagementNotificationServiceSchedulesNotifications() async throws {
+    let baseDate = Date(timeIntervalSince1970: 1_710_345_600)
+    let scheduler = InMemoryNotificationScheduler()
+    let service = EngagementNotificationService(
+        scheduler: scheduler,
+        planner: NotificationPlanner(),
+        dateProvider: FixedDateProvider(now: baseDate),
+        calendar: Calendar(identifier: .gregorian)
+    )
+
+    _ = await service.scheduleDailyReminder(for: [], on: baseDate)
+    _ = await service.scheduleMentalTrainingMotivation(on: baseDate, streakDays: 2)
+    _ = await service.schedulePomodoroTimerNotification(
+        activityTitle: "Repaso de cálculo",
+        remainingSeconds: 25 * 60,
+        now: baseDate
+    )
+
+    let scheduled = await scheduler.scheduledNotifications()
+
+    #expect(scheduled.count == 3)
+    #expect(scheduled.contains(where: { $0.id.contains("daily-reminder") }))
+    #expect(scheduled.contains(where: { $0.id.contains("mental-motivation") }))
+    #expect(scheduled.contains(where: { $0.id.contains("pomodoro") }))
+    #expect(scheduled.contains(where: { $0.message.title.contains("Pomodoro") }))
+    #expect(scheduled.contains(where: { $0.message.body.contains("racha") }))
 }
 
 @Test("Parser local extrae material con fuentes desde JSON")

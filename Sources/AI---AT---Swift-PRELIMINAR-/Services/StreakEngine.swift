@@ -60,4 +60,24 @@ public struct NotificationPlanner {
             body: "¿Por qué no hacer un entrenamiento rápido hoy?"
         )
     }
+
+    public func pomodoroFinishReminder(activityTitle: String) -> NotificationMessage {
+        NotificationMessage(
+            title: "Pomodoro listo",
+            body: "Tu sesión para \"\(activityTitle)\" terminó. Toma un descanso corto y marca tu avance."
+        )
+    }
+
+    public func mentalTrainingMotivation(streakDays: Int) -> NotificationMessage {
+        if streakDays > 0 {
+            return NotificationMessage(
+                title: "Protege tu racha de \(streakDays) días",
+                body: "Completa un entrenamiento mental rápido y mantén tu racha activa."
+            )
+        }
+        return NotificationMessage(
+            title: "Activa tu enfoque",
+            body: "Haz un entrenamiento mental corto para arrancar con energía y concentración."
+        )
+    }
 }

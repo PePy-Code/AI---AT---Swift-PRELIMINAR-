@@ -11,5 +11,8 @@ Entrenador académico para iOS con el propósito de apoyar a estudiantes con pro
 - **Motor de racha** con reglas:
   - Día con actividades: racha válida solo si todas se completan.
   - Día sin actividades: racha válida con 1 entrenamiento mental válido.
-- Planificador de notificaciones para día con/sin actividades.
+- Notificaciones implementadas para:
+  - fin de temporizador Pomodoro,
+  - recordatorios diarios según agenda,
+  - mensajes motivacionales para impulsar entrenamiento mental.
 - Pruebas unitarias para reglas de racha, trivia, agenda y notificaciones.

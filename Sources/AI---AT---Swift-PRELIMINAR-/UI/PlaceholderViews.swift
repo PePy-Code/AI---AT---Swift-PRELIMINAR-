@@ -5,9 +5,11 @@ public struct HomeView: View {
     @State private var todayActivities: [Activity] = []
     @State private var streakState = StreakState()
     @State private var hasLoaded = false
+    @State private var reminderNotification: NotificationMessage?
+    @State private var motivationNotification: NotificationMessage?
     private let agendaService = AgendaService(persistence: LocalAgendaDatabase())
     private let streakEngine = StreakEngine()
-    private let planner = NotificationPlanner()
+    private let notificationService = AppNotifications.service
 
     public init() {}
 
@@ -21,9 +23,16 @@ public struct HomeView: View {
                         Text("\(streakState.days) días")
                             .fontWeight(.semibold)
                     }
-                    Text(planner.reminderForDay(activities: todayActivities).body)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
+                    if let reminderNotification {
+                        Label(reminderNotification.body, systemImage: "bell.fill")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                    if let motivationNotification {
+                        Label(motivationNotification.body, systemImage: "brain.head.profile")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
                 }
 
                 Section("Módulos") {
@@ -49,9 +58,13 @@ public struct HomeView: View {
             current: streakState,
             input: DailyEvaluationInput(day: Date(), scheduledActivities: activities, validMentalTrainingCompletions: 0)
         )
+        let reminder = await notificationService.scheduleDailyReminder(for: activities, on: Date())
+        let motivation = await notificationService.scheduleMentalTrainingMotivation(on: Date(), streakDays: updated.days)
         await MainActor.run {
             self.todayActivities = activities
             self.streakState = updated
+            self.reminderNotification = reminder
+            self.motivationNotification = motivation
         }
     }
 }
@@ -64,7 +77,9 @@ public struct AgendaView: View {
     @State private var newTopic = ""
     @State private var newTypeRawValue = ActivityType.study.rawValue
     @State private var supportMaterialByActivityID: [UUID: [String]] = [:]
+    @State private var timerNotificationMessage: NotificationMessage?
     private let agendaService = AgendaService(persistence: LocalAgendaDatabase())
+    private let notificationService = AppNotifications.service
 
     public init() {}
 
@@ -146,6 +161,13 @@ public struct AgendaView: View {
             }
 
             if let active = selectedActivity {
+                if let timerNotificationMessage {
+                    Label(timerNotificationMessage.body, systemImage: "timer")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+
                 if let support = supportMaterialByActivityID[active.id], !support.isEmpty {
                     VStack(alignment: .leading, spacing: 6) {
                         Text("Material IA para \(active.topic)")
@@ -167,6 +189,17 @@ public struct AgendaView: View {
                 PomodoroTimerView(
                     title: "Pomodoro: \(active.title)",
                     initialSeconds: 25 * 60,
+                    onTimerScheduled: { remainingSeconds in
+                        Task {
+                            let message = await notificationService.schedulePomodoroTimerNotification(
+                                activityTitle: active.title,
+                                remainingSeconds: remainingSeconds
+                            )
+                            await MainActor.run {
+                                timerNotificationMessage = message
+                            }
+                        }
+                    },
                     onMarkCompleted: {
                         Task {
                             _ = await agendaService.completeActivity(id: active.id)
@@ -289,6 +322,7 @@ public struct AgendaView: View {
 public struct PomodoroTimerView: View {
     public let title: String
     public let initialSeconds: Int
+    public let onTimerScheduled: ((Int) -> Void)?
     public let onMarkCompleted: () -> Void
     public let onMarkPending: () -> Void
     public let onTimerFinished: (() -> Void)?
@@ -300,12 +334,14 @@ public struct PomodoroTimerView: View {
     public init(
         title: String,
         initialSeconds: Int,
+        onTimerScheduled: ((Int) -> Void)? = nil,
         onMarkCompleted: @escaping () -> Void,
         onMarkPending: @escaping () -> Void,
         onTimerFinished: (() -> Void)? = nil
     ) {
         self.title = title
         self.initialSeconds = max(initialSeconds, 0)
+        self.onTimerScheduled = onTimerScheduled
         self.onMarkCompleted = onMarkCompleted
         self.onMarkPending = onMarkPending
         self.onTimerFinished = onTimerFinished
@@ -327,7 +363,12 @@ public struct PomodoroTimerView: View {
             HStack(spacing: 10) {
                 Button(isRunning ? "Pausar" : "Iniciar") {
                     guard remainingSeconds > 0 else { return }
+                    let shouldStart = !isRunning
                     isRunning.toggle()
+                    if shouldStart {
+                        didFinish = false
+                        onTimerScheduled?(remainingSeconds)
+                    }
                 }
                 .buttonStyle(.bordered)
                 Button("Reiniciar") {
@@ -385,8 +426,11 @@ public struct MentalTrainerView: View {
     @State private var questionAnswered = false
     @State private var answeredOptionIndex: Int?
     @State private var correctOptionIndex: Int?
+    @State private var hasScheduledMotivation = false
+    @State private var scheduledMotivationMessage: NotificationMessage?
     private let ticker = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
     private let mentalService = MentalTrainerService()
+    private let notificationService = AppNotifications.service
 
     public init() {}
 
@@ -402,6 +446,11 @@ public struct MentalTrainerView: View {
             }
 
             if !hasStarted {
+                if let scheduledMotivationMessage {
+                    Label(scheduledMotivationMessage.body, systemImage: "bell.badge")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
                 Text("Responde trivia con 10 segundos por pregunta. Si fallas después de 5 aciertos, termina la partida.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
@@ -485,6 +534,14 @@ public struct MentalTrainerView: View {
                   let deadline = questionDeadline else { return }
             if Date() >= deadline {
                 Task { await answer(optionIndex: -1, answerDate: Date()) }
+            }
+        }
+        .task {
+            guard !hasScheduledMotivation else { return }
+            hasScheduledMotivation = true
+            let message = await notificationService.scheduleMentalTrainingMotivation(on: Date(), streakDays: 0)
+            await MainActor.run {
+                scheduledMotivationMessage = message
             }
         }
     }
