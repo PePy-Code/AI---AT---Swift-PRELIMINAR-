@@ -15,6 +15,7 @@ public struct HomeView: View {
     @State private var pendingStartActivity: Activity?
     @State private var activeActivity: Activity?
     @State private var editingActivity: Activity?
+    @State private var suppressTapForActivityID: UUID?
     @State private var openWeeklyAgenda = false
     @State private var showQuickAddActivity = false
     private let agendaService = AgendaService(persistence: LocalAgendaDatabase())
@@ -197,6 +198,10 @@ public struct HomeView: View {
     private func agendaCell(for activity: Activity?) -> some View {
         if let activity {
             Button {
+                if suppressTapForActivityID == activity.id {
+                    suppressTapForActivityID = nil
+                    return
+                }
                 pendingStartActivity = activity
             } label: {
                 HStack(spacing: 6) {
@@ -213,6 +218,7 @@ public struct HomeView: View {
             }
             .buttonStyle(.plain)
             .onLongPressGesture(minimumDuration: 0.5) {
+                suppressTapForActivityID = activity.id
                 editingActivity = activity
             }
         } else {
@@ -346,7 +352,7 @@ private struct ActivityLaunchPlaceholderView: View {
         VStack(spacing: 12) {
             HStack(spacing: 10) {
                 Button("Finalizar") {
-                    Task { await completeAndStartFinishFlow() }
+                    finishAlertStep = .confirmFinish
                 }
                 .buttonStyle(.borderedProminent)
 
@@ -357,6 +363,13 @@ private struct ActivityLaunchPlaceholderView: View {
             }
 
             pomodoroCard
+                .alert(item: $pomodoroTransitionAlert) { alert in
+                    Alert(
+                        title: Text("Pomodoro"),
+                        message: Text(alert.message),
+                        dismissButton: .default(Text("OK"))
+                    )
+                }
             chatSection
             chatComposer
         }
@@ -386,6 +399,15 @@ private struct ActivityLaunchPlaceholderView: View {
         }
         .alert(item: $finishAlertStep) { step in
             switch step {
+            case .confirmFinish:
+                return Alert(
+                    title: Text("Finalizar actividad"),
+                    message: Text("¿Seguro que quieres finalizar \(activity.title)?"),
+                    primaryButton: .destructive(Text("Finalizar")) {
+                        Task { await completeAndStartFinishFlow() }
+                    },
+                    secondaryButton: .cancel(Text("Cancelar"))
+                )
             case .congrats:
                 return Alert(
                     title: Text("¡Felicidades!"),
@@ -429,13 +451,6 @@ private struct ActivityLaunchPlaceholderView: View {
                     }
                 )
             }
-        }
-        .alert(item: $pomodoroTransitionAlert) { alert in
-            Alert(
-                title: Text("Pomodoro"),
-                message: Text(alert.message),
-                dismissButton: .default(Text("OK"))
-            )
         }
         .navigationDestination(isPresented: $navigateToTrainer) {
             MentalTrainerView()
@@ -714,6 +729,7 @@ private struct ActivityLaunchPlaceholderView: View {
 }
 
 private enum FinishAlertStep: String, Identifiable {
+    case confirmFinish
     case congrats
     case mentalTrainingPrompt
     case streak
