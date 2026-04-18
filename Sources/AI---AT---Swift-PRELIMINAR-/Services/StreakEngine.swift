@@ -51,7 +51,7 @@ public struct NotificationPlanner {
         if activities.isEmpty {
             return NotificationMessage(
                 title: "Mantén tu racha activa",
-                body: "Hoy no tienes actividades programadas. Haz un ejercicio del Entrenador Mental para mantener tu racha."
+                body: "Hoy no tienes actividades programadas. Haz un ejercicio del entrenador mental para mantener tu racha."
             )
         }
 

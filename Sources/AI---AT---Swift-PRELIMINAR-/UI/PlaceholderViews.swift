@@ -558,7 +558,7 @@ private struct ActivityLaunchPlaceholderView: View {
         let lowered = text.lowercased()
         let blockedTokens = [
             "resuelve", "resuélveme", "hazme la tarea", "haz la tarea",
-            "dame la respuesta", "responde por mi", "hazlo por mi", "solve"
+            "dame la respuesta", "responde por mí", "hazlo por mí", "solve"
         ]
         return blockedTokens.contains(where: { lowered.contains($0) })
     }

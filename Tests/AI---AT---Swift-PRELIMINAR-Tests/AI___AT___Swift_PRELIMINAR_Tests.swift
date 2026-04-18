@@ -136,7 +136,7 @@ func notificationPlannerMessages() async throws {
         Activity(title: "Tarea", topic: "Tema", type: .task, scheduledAt: .now)
     ])
 
-    #expect(withoutActivities.body.contains("Entrenador Mental"))
+    #expect(withoutActivities.body.contains("entrenador mental"))
     #expect(withActivities.body.contains("entrenamiento rápido"))
     #expect(planner.pomodoroFinishReminder(activityTitle: "Repaso").title.contains("Pomodoro"))
     #expect(planner.mentalTrainingMotivation(streakDays: 3).body.contains("racha"))
