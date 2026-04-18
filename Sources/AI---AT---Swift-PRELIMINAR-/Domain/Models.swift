@@ -14,7 +14,7 @@ public enum ActivityStatus: String, Codable, Sendable {
     case failed
 }
 
-public struct Activity: Identifiable, Codable, Sendable, Equatable {
+public struct Activity: Identifiable, Codable, Sendable, Equatable, Hashable {
     public let id: UUID
     public var title: String
     public var topic: String
