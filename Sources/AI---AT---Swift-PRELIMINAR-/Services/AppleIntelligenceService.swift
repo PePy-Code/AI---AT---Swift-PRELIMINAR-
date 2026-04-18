@@ -75,7 +75,7 @@ struct LocalFallbackGenerator {
                     category: .math,
                     prompt: "¿Resultado de 2 + 2 * 3?",
                     options: ["12", "8", "6", "10"],
-                    correctOptionIndex: 2
+                    correctOptionIndex: 1
                 )
             ],
             .history: [
