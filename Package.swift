@@ -28,7 +28,9 @@ products.append(
         displayVersion: "1.0",
         bundleVersion: "1",
         iconAssetName: nil,
-        accentColorAssetName: nil
+        accentColorAssetName: nil,
+        supportedDeviceFamilies: [.phone, .pad],
+        supportedInterfaceOrientations: [.portrait, .landscapeLeft, .landscapeRight]
     )
 )
 #endif
