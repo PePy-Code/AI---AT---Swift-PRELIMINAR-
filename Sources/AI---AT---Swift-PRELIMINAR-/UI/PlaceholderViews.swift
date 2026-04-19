@@ -471,11 +471,13 @@ private struct PersonalChatbotView: View {
     private func summaryIntroMessage() -> String {
         let todayPending = todayActivities.filter { $0.status != .completed }.count
         let tomorrowCount = tomorrowActivities.count
-        let streakText = streakDays > 0 ? "Llevas una racha de \(streakDays) día(s)." : "Aún no tienes racha activa."
+        let streakDayWord = streakDays == 1 ? "día" : "días"
+        let activityWord = todayPending == 1 ? "actividad" : "actividades"
+        let streakText = streakDays > 0 ? "Llevas una racha de \(streakDays) \(streakDayWord)." : "Aún no tienes racha activa."
         if todayActivities.isEmpty && tomorrowActivities.isEmpty {
             return "Estoy aquí para ayudarte a planificar tu día. \(streakText) Si quieres, empezamos creando una actividad pequeña."
         }
-        return "Te ayudo a organizarte y mantener el enfoque. Hoy te quedan \(todayPending) actividad(es) pendientes y mañana tienes \(tomorrowCount). \(streakText)"
+        return "Te ayudo a organizarte y mantener el enfoque. Hoy te quedan \(todayPending) \(activityWord) pendientes y mañana tienes \(tomorrowCount). \(streakText)"
     }
 
     private var agendaContextText: String {
