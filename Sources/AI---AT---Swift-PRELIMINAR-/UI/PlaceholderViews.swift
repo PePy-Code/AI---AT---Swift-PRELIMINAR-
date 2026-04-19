@@ -569,34 +569,10 @@ private struct ActivityLaunchPlaceholderView: View {
     }
 
     private func startSessionAndSeedChat() async {
-        var support: [String] = []
-        if let session = try? await agendaService.startActivity(id: activity.id) {
-            support = session.supportMaterial
-        }
-        if support.isEmpty {
-            support = (try? await intelligence.supportMaterial(for: normalizedTopic, type: activity.type)) ?? []
-        }
-        let intro = initialAssistantMessage(with: support)
+        _ = try? await agendaService.startActivity(id: activity.id)
         await MainActor.run {
-            messages = [
-                ActivityChatMessage(role: .assistant, text: intro)
-            ]
+            messages = []
         }
-    }
-
-    private func initialAssistantMessage(with support: [String]) -> String {
-        let header: String
-        switch activity.type {
-        case .task:
-            header = "🐭 ¡Vamos con tu tarea \"\(activity.title)\"! Te comparto apoyo para que la desarrolles con tus propias ideas:"
-        case .study:
-            header = "🐭 ¡Empecemos a estudiar \"\(activity.title)\"! Si quieres, cuéntame más de tu tema y te guío paso a paso."
-        case .other:
-            header = "🐭 Estoy contigo en \"\(activity.title)\". Aquí tienes material para avanzar:"
-        }
-        guard !support.isEmpty else { return header }
-        let bullets = support.map { "• \($0)" }.joined(separator: "\n")
-        return "\(header)\n\(bullets)"
     }
 
     private func sendUserMessage() async {
@@ -615,8 +591,6 @@ private struct ActivityLaunchPlaceholderView: View {
     }
 
     private func assistantResponse(for text: String) async -> String {
-        let support = (try? await intelligence.supportMaterial(for: normalizedTopic, type: activity.type)) ?? []
-        let bulletText = support.isEmpty ? "" : "\n" + support.map { "• \($0)" }.joined(separator: "\n")
         let modelReply = (try? await intelligence.chatReply(
             userMessage: text,
             activityTitle: activity.title,
@@ -625,9 +599,9 @@ private struct ActivityLaunchPlaceholderView: View {
         )) ?? ""
         let cleaned = modelReply.trimmingCharacters(in: .whitespacesAndNewlines)
         if cleaned.isEmpty {
-            return "Vamos paso a paso con tu actividad. Primero identifica la meta principal y luego avanza por partes pequeñas.\(bulletText)"
+            return "Cuéntame más detalle de lo que necesitas y te respondo de forma concreta."
         }
-        return cleaned + bulletText
+        return cleaned
     }
 
     #if canImport(PhotosUI)

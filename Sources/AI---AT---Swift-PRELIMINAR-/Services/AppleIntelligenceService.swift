@@ -20,7 +20,7 @@ public struct AppleIntelligenceService: AppleIntelligenceProviding {
     ) {
         switch localAgentConfiguration {
         case .automatic:
-            self.localAgent = AppleIntelligenceService.makeDefaultLocalAgent()
+            self.localAgent = nil
         case let .provided(agent):
             self.localAgent = agent
         }
@@ -77,11 +77,20 @@ public struct AppleIntelligenceService: AppleIntelligenceProviding {
 
         switch type {
         case .task:
-            return "Claro. Para \"\(cleanedTitle)\", puedo ayudarte a resolver cualquier duda paso a paso, estructurar respuestas y revisar lo que escribas."
+            return """
+            Entiendo tu consulta sobre "\(cleanedTitle)".
+            Para avanzar con "\(cleanedMessage)", define primero el objetivo exacto y comparte tu intento; te ayudo a resolverlo y mejorarlo.
+            """
         case .study:
-            return "Perfecto. Sobre \"\(cleanedTitle)\", puedo explicarte conceptos, hacer resúmenes, proponer preguntas de práctica y ayudarte con ejemplos."
+            return """
+            Vamos con "\(cleanedTitle)".
+            Sobre "\(cleanedMessage)", puedo explicarlo en pasos, darte un ejemplo y luego validar si quedó claro.
+            """
         case .other:
-            return "Listo. En \"\(cleanedTitle)\", puedo apoyarte con ideas, redacción, investigación y resolución de dudas en tiempo real."
+            return """
+            Recibido para "\(cleanedTitle)".
+            Si me dices el resultado que buscas en "\(cleanedMessage)", te propongo una respuesta concreta y la refinamos en conjunto.
+            """
         }
     }
 
@@ -109,17 +118,6 @@ public struct AppleIntelligenceService: AppleIntelligenceProviding {
             categories: validatedCategories,
             difficulty: validatedDifficulty
         )
-    }
-}
-
-private extension AppleIntelligenceService {
-    static func makeDefaultLocalAgent() -> LocalAcademicAgentProviding? {
-        #if canImport(FoundationModels)
-        if #available(iOS 26.0, macOS 15.0, *) {
-            return FoundationModelsLocalAgent()
-        }
-        #endif
-        return nil
     }
 }
 
