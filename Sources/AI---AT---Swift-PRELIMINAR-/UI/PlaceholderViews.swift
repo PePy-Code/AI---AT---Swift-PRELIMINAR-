@@ -1437,6 +1437,7 @@ public struct PomodoroTimerView: View {
 }
 
 public struct MentalTrainerView: View {
+    @Environment(\.dismiss) private var dismiss
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var hasStarted = false
@@ -1450,14 +1451,21 @@ public struct MentalTrainerView: View {
     @State private var feedbackColor: Color = .secondary
     @State private var isGameOver = false
     @State private var sessionCompleted = false
+    @State private var sessionWon = false
     @State private var questionAnswered = false
     @State private var answeredOptionIndex: Int?
     @State private var correctOptionIndex: Int?
     @State private var hasScheduledMotivation = false
     @State private var scheduledMotivationMessage: NotificationMessage?
+    @State private var trainerAlertStep: TrainerAlertStep?
+    @State private var shouldShowStreakAfterWin = false
+    @State private var trainerStreakDays = 0
+    @State private var trainerStreakIncrementedToday = false
     private let ticker = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
     private let mentalService = MentalTrainerService()
     private let notificationService = AppNotifications.service
+    private let agendaService = AgendaService(persistence: LocalAgendaDatabase())
+    private let calendar = Calendar.current
 
     public init() {}
 
@@ -1478,7 +1486,7 @@ public struct MentalTrainerView: View {
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
-                Text("Responde trivia con 10 segundos por pregunta. Si fallas después de 5 aciertos, termina la partida.")
+                Text("Responde trivia de opción múltiple con 10 segundos por pregunta. Ganas al llegar a 8 correctas seguidas.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                 Button(isLoading ? "Cargando..." : "Iniciar entrenamiento") {
@@ -1497,7 +1505,7 @@ public struct MentalTrainerView: View {
 
                 if let currentQuestion {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Pregunta \(currentQuestionIndex + 1) de \(max(totalQuestions, 1))")
+                        Text("Pregunta \(currentQuestionIndex + 1)")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                         Text(currentQuestion.prompt)
@@ -1548,9 +1556,9 @@ public struct MentalTrainerView: View {
                     .disabled(isLoading)
 
                     if sessionCompleted || isGameOver {
-                        Text(isGameOver ? "Game Over" : "Sesión finalizada")
+                        Text(sessionWon ? "Trivia ganada" : (isGameOver ? "Game Over" : "Sesión finalizada"))
                             .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(isGameOver ? .red : .green)
+                            .foregroundStyle(sessionWon ? .green : (isGameOver ? .red : .green))
                     }
                 }
             }
@@ -1571,6 +1579,33 @@ public struct MentalTrainerView: View {
                 scheduledMotivationMessage = message
             }
         }
+        .alert(item: $trainerAlertStep) { step in
+            switch step {
+            case .win:
+                return Alert(
+                    title: Text("¡Felicidades!"),
+                    message: Text("Ganaste la trivia con 8 respuestas correctas."),
+                    dismissButton: .default(Text("Continuar")) {
+                        if shouldShowStreakAfterWin {
+                            trainerAlertStep = .streakInfo
+                        } else {
+                            dismiss()
+                        }
+                    }
+                )
+            case .streakInfo:
+                let info = trainerStreakIncrementedToday
+                    ? "Tu racha aumentó en 1 día. Llevas \(trainerStreakDays) días."
+                    : "Tu racha de hoy ya estaba validada. Llevas \(trainerStreakDays) días."
+                return Alert(
+                    title: Text("🔥 Racha"),
+                    message: Text(info),
+                    dismissButton: .default(Text("Continuar")) {
+                        dismiss()
+                    }
+                )
+            }
+        }
     }
 
     private func startSession() async {
@@ -1580,9 +1615,11 @@ public struct MentalTrainerView: View {
             feedbackMessage = nil
             isGameOver = false
             sessionCompleted = false
+            sessionWon = false
             questionAnswered = false
             answeredOptionIndex = nil
             correctOptionIndex = nil
+            trainerAlertStep = nil
         }
 
         do {
@@ -1636,24 +1673,28 @@ public struct MentalTrainerView: View {
             if feedback.isCorrect {
                 feedbackMessage = "¡Correcto!"
                 feedbackColor = .green
-            } else if feedback.shouldShowRetry {
-                feedbackMessage = "Incorrecto. Sigue intentando."
-                feedbackColor = .orange
+            } else if feedback.isWin {
+                feedbackMessage = "¡Ganaste la trivia!"
+                feedbackColor = .green
             } else if feedback.isGameOver {
-                feedbackMessage = "Perdiste después de 5 aciertos. Game Over."
+                feedbackMessage = "Respuesta incorrecta. Fin de la trivia."
                 feedbackColor = .red
             } else {
                 feedbackMessage = "Respuesta incorrecta."
                 feedbackColor = .red
             }
 
+            if feedback.isWin {
+                sessionWon = true
+                sessionCompleted = true
+                isLoading = false
+                return
+            }
+
             if feedback.isGameOver {
                 isGameOver = true
                 sessionCompleted = true
                 isLoading = false
-                if correctAnswers >= 5 {
-                    MentalTrainingStreakStore.registerCompletion(on: Date())
-                }
                 return
             }
 
@@ -1669,24 +1710,46 @@ public struct MentalTrainerView: View {
                 currentQuestion = nil
                 sessionCompleted = true
                 isLoading = false
-                if correctAnswers >= 5 {
-                    MentalTrainingStreakStore.registerCompletion(on: Date())
-                }
                 if feedbackMessage == nil {
                     feedbackMessage = "Sesión finalizada."
                     feedbackColor = .green
                 }
             }
         }
+
+        if feedback.isWin {
+            await finalizeWinFlow()
+        }
     }
 
     private func remainingSeconds(until deadline: Date) -> Int {
         max(Int(deadline.timeIntervalSinceNow.rounded(.down)), 0)
     }
+
+    private func finalizeWinFlow() async {
+        let today = Date()
+        let todaysActivities = await agendaService.listActivities(on: today, calendar: calendar)
+        let hasNoScheduledActivities = todaysActivities.isEmpty
+
+        var streakDays = 0
+        var incremented = false
+        if hasNoScheduledActivities {
+            incremented = MentalTrainingStreakStore.registerDailyTrainerStreakIfNeeded(on: today, calendar: calendar)
+            streakDays = await StreakComputation.days(endingOn: today, agendaService: agendaService, calendar: calendar)
+        }
+
+        await MainActor.run {
+            shouldShowStreakAfterWin = hasNoScheduledActivities
+            trainerStreakDays = streakDays
+            trainerStreakIncrementedToday = incremented
+            trainerAlertStep = .win
+        }
+    }
 }
 
 private enum MentalTrainingStreakStore {
     private static let keyPrefix = "mental-training-completions-"
+    private static let trainerDailyStreakPrefix = "mental-training-trainer-streak-"
 
     static func registerCompletion(on day: Date, calendar: Calendar = .current) {
         let key = keyForDay(day, calendar: calendar)
@@ -1698,12 +1761,32 @@ private enum MentalTrainingStreakStore {
         UserDefaults.standard.integer(forKey: keyForDay(day, calendar: calendar))
     }
 
+    @discardableResult
+    static func registerDailyTrainerStreakIfNeeded(on day: Date, calendar: Calendar = .current) -> Bool {
+        let key = trainerDailyStreakKeyForDay(day, calendar: calendar)
+        if UserDefaults.standard.bool(forKey: key) { return false }
+        UserDefaults.standard.set(true, forKey: key)
+        return true
+    }
+
+    static func hasDailyTrainerStreak(on day: Date, calendar: Calendar = .current) -> Bool {
+        UserDefaults.standard.bool(forKey: trainerDailyStreakKeyForDay(day, calendar: calendar))
+    }
+
     private static func keyForDay(_ day: Date, calendar: Calendar) -> String {
         let components = calendar.dateComponents([.year, .month, .day], from: day)
         let year = components.year ?? 0
         let month = components.month ?? 0
         let date = components.day ?? 0
         return keyPrefix + String(format: "%04d-%02d-%02d", year, month, date)
+    }
+
+    private static func trainerDailyStreakKeyForDay(_ day: Date, calendar: Calendar) -> String {
+        let components = calendar.dateComponents([.year, .month, .day], from: day)
+        let year = components.year ?? 0
+        let month = components.month ?? 0
+        let date = components.day ?? 0
+        return trainerDailyStreakPrefix + String(format: "%04d-%02d-%02d", year, month, date)
     }
 }
 
@@ -1728,9 +1811,17 @@ private enum StreakComputation {
                 ? .allScheduledActivitiesCompleted
                 : .incompleteDay
         }
-        return MentalTrainingStreakStore.completionCount(on: day, calendar: calendar) >= 5
+        return (MentalTrainingStreakStore.hasDailyTrainerStreak(on: day, calendar: calendar)
+            || MentalTrainingStreakStore.completionCount(on: day, calendar: calendar) >= 5)
             ? .mentalTrainingOnNoAgendaDay
             : .incompleteDay
     }
+}
+
+private enum TrainerAlertStep: String, Identifiable {
+    case win
+    case streakInfo
+
+    var id: String { rawValue }
 }
 #endif

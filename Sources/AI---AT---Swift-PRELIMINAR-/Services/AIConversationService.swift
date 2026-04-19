@@ -89,6 +89,22 @@ public struct AIConversationService: AIConversationProviding {
         let validatedCategories = categories.isEmpty ? TriviaCategory.allCases : categories
         let validatedDifficulty = min(max(difficulty, 1), 5)
 
+        let prompt = triviaGenerationPrompt(
+            count: validatedCount,
+            categories: validatedCategories,
+            difficulty: validatedDifficulty
+        )
+        if let generated = await openSourceKnowledge.answer(for: prompt) {
+            let parsed = LocalAgentResponseParser.parseTriviaQuestions(
+                from: generated,
+                categories: validatedCategories,
+                limit: validatedCount
+            )
+            if parsed.count == validatedCount {
+                return parsed.shuffled()
+            }
+        }
+
         return fallback.defaultQuestions(
             count: validatedCount,
             categories: validatedCategories,
@@ -175,6 +191,37 @@ private extension AIConversationService {
         Si quieres, dime la pregunta exacta o comparte más contexto para darte una respuesta más precisa.
         """
     }
+
+    func triviaGenerationPrompt(count: Int, categories: [TriviaCategory], difficulty: Int) -> String {
+        let categoryTokens = categories.map(\.rawValue).joined(separator: ", ")
+        let randomSeed = UUID().uuidString
+        return """
+        Genera \(count) preguntas de trivia aleatorias en español.
+        Categorías permitidas: \(categoryTokens).
+        Dificultad aproximada de 1 a 5: \(difficulty).
+        Semilla de aleatoriedad: \(randomSeed)
+
+        Responde ÚNICAMENTE en JSON válido con este formato exacto:
+        {
+          "questions": [
+            {
+              "category": "math|history|science|popCulture",
+              "prompt": "pregunta",
+              "options": ["opción 1","opción 2","opción 3","opción 4"],
+              "correctOptionIndex": 0,
+              "imageURL": null
+            }
+          ]
+        }
+
+        Reglas obligatorias:
+        - Exactamente \(count) preguntas.
+        - Cada pregunta con 4 opciones.
+        - Solo una opción correcta.
+        - correctOptionIndex entre 0 y 3.
+        - No incluyas explicación ni texto fuera del JSON.
+        """
+    }
 }
 
 struct LocalFallbackGenerator {
@@ -191,16 +238,15 @@ struct LocalFallbackGenerator {
         categories: [TriviaCategory],
         difficulty: Int
     ) -> [TriviaQuestion] {
-        var result: [TriviaQuestion] = []
         let base = questionBank(difficulty: difficulty)
         let cycle = categories.isEmpty ? TriviaCategory.allCases : categories
+        let available: [TriviaQuestion] = cycle.flatMap { base[$0] ?? [] }.shuffled()
+        guard !available.isEmpty else { return [] }
 
-        for index in 0..<count {
-            let category = cycle[index % cycle.count]
-            let pool = base[category] ?? []
-            if let question = pool[safe: index % max(pool.count, 1)] {
-                result.append(question)
-            }
+        let targetCount = min(count, available.count)
+        var result: [TriviaQuestion] = []
+        for index in 0..<targetCount {
+            result.append(available[index])
         }
         return result
     }
@@ -219,6 +265,18 @@ struct LocalFallbackGenerator {
                     prompt: "¿Resultado de 2 + 2 * 3?",
                     options: ["12", "8", "6", "10"],
                     correctOptionIndex: 1
+                ),
+                TriviaQuestion(
+                    category: .math,
+                    prompt: "¿Cuál es el resultado de 18 ÷ 3 + 2 * 4?",
+                    options: ["14", "20", "10", "24"],
+                    correctOptionIndex: 0
+                ),
+                TriviaQuestion(
+                    category: .math,
+                    prompt: "¿Cuánto da 7 + 3 * (2 + 1)?",
+                    options: ["30", "16", "28", "12"],
+                    correctOptionIndex: 1
                 )
             ],
             .history: [
@@ -226,6 +284,18 @@ struct LocalFallbackGenerator {
                     category: .history,
                     prompt: "¿En qué año llegó Cristóbal Colón a América?",
                     options: ["1492", "1502", "1450", "1521"],
+                    correctOptionIndex: 0
+                ),
+                TriviaQuestion(
+                    category: .history,
+                    prompt: "¿Quién fue el primer presidente de Estados Unidos?",
+                    options: ["Abraham Lincoln", "George Washington", "Thomas Jefferson", "John Adams"],
+                    correctOptionIndex: 1
+                ),
+                TriviaQuestion(
+                    category: .history,
+                    prompt: "¿En qué país se construyó originalmente el Muro de Berlín?",
+                    options: ["Alemania Oriental", "Alemania Occidental", "Polonia", "Austria"],
                     correctOptionIndex: 0
                 )
             ],
@@ -242,6 +312,18 @@ struct LocalFallbackGenerator {
                     category: .popCulture,
                     prompt: "¿En qué año se estrenó Star Wars: Episode IV?",
                     options: ["1972", "1977", "1980", "1983"],
+                    correctOptionIndex: 1
+                ),
+                TriviaQuestion(
+                    category: .popCulture,
+                    prompt: "¿Qué saga incluye al personaje Harry Potter?",
+                    options: ["Narnia", "Harry Potter", "Percy Jackson", "Dune"],
+                    correctOptionIndex: 1
+                ),
+                TriviaQuestion(
+                    category: .popCulture,
+                    prompt: "¿Cuál de estos personajes pertenece a Marvel?",
+                    options: ["Batman", "Spider-Man", "Shrek", "Sherlock Holmes"],
                     correctOptionIndex: 1
                 )
             ]

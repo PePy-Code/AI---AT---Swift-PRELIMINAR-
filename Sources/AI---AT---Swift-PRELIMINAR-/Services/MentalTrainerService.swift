@@ -5,12 +5,14 @@ public struct TriviaFeedback: Sendable, Equatable {
     public let correctOptionIndex: Int
     public let shouldShowRetry: Bool
     public let isGameOver: Bool
+    public let isWin: Bool
 
-    public init(isCorrect: Bool, correctOptionIndex: Int, shouldShowRetry: Bool, isGameOver: Bool) {
+    public init(isCorrect: Bool, correctOptionIndex: Int, shouldShowRetry: Bool, isGameOver: Bool, isWin: Bool) {
         self.isCorrect = isCorrect
         self.correctOptionIndex = correctOptionIndex
         self.shouldShowRetry = shouldShowRetry
         self.isGameOver = isGameOver
+        self.isWin = isWin
     }
 }
 
@@ -29,6 +31,7 @@ public struct ActiveTriviaSession: Sendable {
 }
 
 public actor MentalTrainerService {
+    private let targetCorrectAnswers = 8
     private let intelligence: AIConversationProviding
     private let dateProvider: DateProviding
     private(set) var highestGlobalScore: Int = 0
@@ -47,7 +50,7 @@ public actor MentalTrainerService {
         let now = dateProvider.now
         let generated = try await intelligence.triviaQuestions(
             count: questionCount,
-            categories: TriviaCategory.allCases,
+            categories: [.math, .history, .popCulture],
             difficulty: 2
         )
         let questions = generated.shuffled()
@@ -84,10 +87,11 @@ public actor MentalTrainerService {
             attempt.incorrectAnswers += 1
         }
 
-        let shouldEndGame = !isCorrect && attempt.correctAnswers >= 5
-        let shouldRetry = !isCorrect && attempt.correctAnswers < 5
+        let didWin = isCorrect && attempt.correctAnswers >= targetCorrectAnswers
+        let shouldEndGame = !isCorrect
+        let shouldRetry = false
 
-        if shouldEndGame {
+        if shouldEndGame || didWin {
             attempt.endedAt = answeredAt
             attempt.highestGlobalScore = highestGlobalScore
             activeSession = nil
@@ -107,12 +111,13 @@ public actor MentalTrainerService {
             isCorrect: isCorrect,
             correctOptionIndex: question.correctOptionIndex,
             shouldShowRetry: shouldRetry,
-            isGameOver: shouldEndGame
+            isGameOver: shouldEndGame,
+            isWin: didWin
         )
     }
 
     public func qualifiesForStreak() -> Bool {
         guard let session = activeSession else { return false }
-        return session.attempt.correctAnswers >= 5
+        return session.attempt.correctAnswers >= targetCorrectAnswers
     }
 }
