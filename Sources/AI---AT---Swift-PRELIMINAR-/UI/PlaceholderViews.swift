@@ -6,6 +6,44 @@ import PhotosUI
 #if canImport(AudioToolbox)
 import AudioToolbox
 #endif
+#if canImport(UserNotifications)
+import UserNotifications
+
+// Delegate that allows local notifications to appear as banners even when the
+// app is in the foreground (without this, iOS silently drops them).
+private final class PomodoroNotificationDelegate: NSObject, UNUserNotificationCenterDelegate, @unchecked Sendable {
+    static let shared = PomodoroNotificationDelegate()
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
+        completionHandler([.banner, .sound])
+    }
+}
+
+// One-shot setup: request permission and register the foreground delegate.
+private func requestPomodoroNotificationPermission() {
+    let center = UNUserNotificationCenter.current()
+    center.delegate = PomodoroNotificationDelegate.shared
+    center.requestAuthorization(options: [.alert, .sound]) { _, _ in }
+}
+
+// Schedule an immediate local notification.  Safe to call from any thread.
+private func schedulePomodoroNotification(title: String, body: String) {
+    let center = UNUserNotificationCenter.current()
+    let content = UNMutableNotificationContent()
+    content.title = title
+    content.body = body
+    content.sound = .default
+    let request = UNNotificationRequest(
+        identifier: "pomodoro-\(UUID().uuidString)",
+        content: content,
+        trigger: nil
+    )
+    center.add(request)
+}
+#endif
 
 public struct HomeView: View {
     @State private var todayActivities: [Activity] = []
@@ -90,6 +128,9 @@ public struct HomeView: View {
             }
             .navigationTitle("Menú principal")
             .onAppear {
+                #if canImport(UserNotifications)
+                requestPomodoroNotificationPermission()
+                #endif
                 Task { await refreshSummary() }
             }
             .onDisappear {
@@ -383,6 +424,8 @@ private struct ActivityLaunchPlaceholderView: View {
     @State private var remainingSeconds = 25 * 60
     @State private var isRunning = true
     @State private var isWorkPhase = true
+    private let workDurationSeconds = 25 * 60
+    private let breakDurationSeconds = 5 * 60
     private let ticker = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
     private let intelligence = AIConversationService()
     private let calendar = Calendar.current
@@ -428,15 +471,17 @@ private struct ActivityLaunchPlaceholderView: View {
             if remainingSeconds > 0 {
                 remainingSeconds -= 1
             } else {
+                let wasWorkPhase = isWorkPhase
                 isWorkPhase.toggle()
-                remainingSeconds = isWorkPhase ? 25 * 60 : 5 * 60
+                remainingSeconds = isWorkPhase ? workDurationSeconds : breakDurationSeconds
                 isRunning = true
                 pomodoroTransitionAlert = PomodoroTransitionAlert(
-                    message: isWorkPhase
-                        ? "Descanso finalizado. Inicia un nuevo bloque de trabajo."
-                        : "Trabajo finalizado. Inicia tu descanso corto."
+                    message: wasWorkPhase
+                        ? "¡Hora de descanso!"
+                        : "¡Hora de trabajo!"
                 )
                 playPomodoroTransitionSound()
+                sendPomodoroPhaseNotification(isBreak: wasWorkPhase)
             }
         }
         .alert(item: $finishAlertStep) { step in
@@ -523,6 +568,18 @@ private struct ActivityLaunchPlaceholderView: View {
             Text(formattedTime(remainingSeconds))
                 .font(.title2.monospacedDigit().weight(.bold))
 
+            Text(currentPomodoroPhaseMessage)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            Text(
+                isWorkPhase
+                    ? "Próxima fase: descanso (\(formattedTime(breakDurationSeconds)))"
+                    : "Próxima fase: trabajo (\(formattedTime(workDurationSeconds)))"
+            )
+            .font(.caption2)
+            .foregroundStyle(.secondary)
+
             HStack(spacing: 10) {
                 Button(isRunning ? "Pausar" : "Iniciar") {
                     isRunning.toggle()
@@ -532,9 +589,18 @@ private struct ActivityLaunchPlaceholderView: View {
                 Button("Reiniciar") {
                     isRunning = false
                     isWorkPhase = true
-                    remainingSeconds = 25 * 60
+                    remainingSeconds = workDurationSeconds
                 }
                 .buttonStyle(.bordered)
+
+                #if DEBUG
+                Button("DEBUG 10 s") {
+                    remainingSeconds = 10
+                    isRunning = true
+                }
+                .buttonStyle(.bordered)
+                .tint(.orange)
+                #endif
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -746,9 +812,23 @@ private struct ActivityLaunchPlaceholderView: View {
         return String(format: "%02d:%02d", minutes, seconds)
     }
 
+    private var currentPomodoroPhaseMessage: String {
+        let phase = isWorkPhase ? "trabajo" : "descanso"
+        return isRunning
+            ? "En curso: \(phase)"
+            : "Pausado: \(phase)"
+    }
+
     private func playPomodoroTransitionSound() {
         #if canImport(AudioToolbox)
         AudioServicesPlaySystemSound(1005)
+        #endif
+    }
+
+    private func sendPomodoroPhaseNotification(isBreak: Bool) {
+        #if canImport(UserNotifications)
+        let body = isBreak ? "¡Hora de descanso!" : "¡Hora de trabajo!"
+        schedulePomodoroNotification(title: "Pomodoro", body: body)
         #endif
     }
 }
@@ -1445,6 +1525,7 @@ public struct PomodoroTimerView: View {
     @State private var remainingSeconds: Int
     @State private var isRunning = false
     @State private var didFinish = false
+    @State private var showFinishedAlert = false
     private let ticker = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     public init(
@@ -1503,8 +1584,16 @@ public struct PomodoroTimerView: View {
             if remainingSeconds == 0 {
                 isRunning = false
                 didFinish = true
+                showFinishedAlert = true
+                playFinishSound()
+                sendFinishNotification()
                 onTimerFinished?()
             }
+        }
+        .alert("⏰ Pomodoro terminado", isPresented: $showFinishedAlert) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text(title.isEmpty ? "¡Tiempo completado!" : "¡Completaste: \(title)!")
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
@@ -1516,6 +1605,19 @@ public struct PomodoroTimerView: View {
         isRunning = false
         didFinish = false
         remainingSeconds = initialSeconds
+    }
+
+    private func playFinishSound() {
+        #if canImport(AudioToolbox)
+        AudioServicesPlaySystemSound(1005)
+        #endif
+    }
+
+    private func sendFinishNotification() {
+        #if canImport(UserNotifications)
+        let body = title.isEmpty ? "¡Tiempo completado!" : "¡Completaste: \(title)!"
+        schedulePomodoroNotification(title: "⏰ Pomodoro terminado", body: body)
+        #endif
     }
 
     private func formattedTime(_ totalSeconds: Int) -> String {
