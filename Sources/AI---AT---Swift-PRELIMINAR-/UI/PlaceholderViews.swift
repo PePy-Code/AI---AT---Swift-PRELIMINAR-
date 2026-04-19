@@ -433,8 +433,8 @@ private struct ActivityLaunchPlaceholderView: View {
                 isRunning = true
                 pomodoroTransitionAlert = PomodoroTransitionAlert(
                     message: isWorkPhase
-                        ? "Se terminó el temporizador de descanso (\(formattedTime(breakDurationSeconds))). Se inició automáticamente el temporizador de trabajo (\(formattedTime(workDurationSeconds)))."
-                        : "Se terminó el temporizador de trabajo (\(formattedTime(workDurationSeconds))). Se inició automáticamente el temporizador de descanso (\(formattedTime(breakDurationSeconds)))."
+                        ? "Descanso finalizado (\(formattedTime(breakDurationSeconds))). Iniciando trabajo (\(formattedTime(workDurationSeconds)))."
+                        : "Trabajo finalizado (\(formattedTime(workDurationSeconds))). Iniciando descanso (\(formattedTime(breakDurationSeconds)))."
                 )
                 pomodoroPhaseMessage = isWorkPhase
                     ? "Cambio automático: pasaste de descanso a trabajo."
@@ -763,7 +763,10 @@ private struct ActivityLaunchPlaceholderView: View {
     }
 
     private var currentPomodoroPhaseMessage: String {
-        "En curso: temporizador de \(isWorkPhase ? "trabajo" : "descanso")."
+        let phase = isWorkPhase ? "trabajo" : "descanso"
+        return isRunning
+            ? "En curso: temporizador de \(phase)."
+            : "Pausado: temporizador de \(phase)."
     }
 
     private func playPomodoroTransitionSound() {
