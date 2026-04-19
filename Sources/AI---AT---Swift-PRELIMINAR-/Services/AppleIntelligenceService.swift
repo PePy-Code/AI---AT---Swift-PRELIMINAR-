@@ -10,8 +10,7 @@ public struct AppleIntelligenceService: AppleIntelligenceProviding {
     private let openSourceKnowledge: OpenSourceKnowledgeProviding
 
     public init(localAgent: LocalAcademicAgentProviding? = nil) {
-        self.localAgent = localAgent ?? AppleIntelligenceService.makeDefaultLocalAgent()
-        self.openSourceKnowledge = OpenSourceKnowledgeService()
+        self.init(localAgent: localAgent, openSourceKnowledge: OpenSourceKnowledgeService())
     }
 
     init(

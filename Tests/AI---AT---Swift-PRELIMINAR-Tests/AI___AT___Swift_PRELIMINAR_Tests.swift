@@ -429,8 +429,7 @@ private struct MockIntelligence: AppleIntelligenceProviding {
 private struct MockOpenSourceKnowledge: OpenSourceKnowledgeProviding {
     let answer: String?
 
-    func answer(for query: String) async -> String? {
-        _ = query
+    func answer(for _: String) async -> String? {
         return answer
     }
 }
