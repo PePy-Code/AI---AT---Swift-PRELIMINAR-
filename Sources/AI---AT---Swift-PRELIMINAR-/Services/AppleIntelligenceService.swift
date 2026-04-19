@@ -76,23 +76,7 @@ public struct AppleIntelligenceService: AppleIntelligenceProviding {
             return openAnswer
         }
 
-        switch type {
-        case .task:
-            return """
-            Entiendo tu consulta sobre "\(cleanedTitle)".
-            Para avanzar con "\(displayContext)", define primero el objetivo exacto y comparte tu intento; te ayudo a resolverlo y mejorarlo.
-            """
-        case .study:
-            return """
-            Vamos con "\(cleanedTitle)".
-            Sobre "\(displayContext)", puedo explicarlo en pasos, darte un ejemplo y luego validar si quedó claro.
-            """
-        case .other:
-            return """
-            Recibido para "\(cleanedTitle)".
-            Si me dices el resultado que buscas en "\(displayContext)", te propongo una respuesta concreta y la refinamos en conjunto.
-            """
-        }
+        return fallbackChatReply(type: type, title: cleanedTitle, context: displayContext)
     }
 
     public func triviaQuestions(
@@ -119,6 +103,28 @@ public struct AppleIntelligenceService: AppleIntelligenceProviding {
             categories: validatedCategories,
             difficulty: validatedDifficulty
         )
+    }
+}
+
+private extension AppleIntelligenceService {
+    func fallbackChatReply(type: ActivityType, title: String, context: String) -> String {
+        switch type {
+        case .task:
+            return """
+            Entiendo tu consulta sobre "\(title)".
+            Para avanzar con "\(context)", define primero el objetivo exacto y comparte tu intento; te ayudo a resolverlo y mejorarlo.
+            """
+        case .study:
+            return """
+            Vamos con "\(title)".
+            Sobre "\(context)", puedo explicarlo en pasos, darte un ejemplo y luego validar si quedó claro.
+            """
+        case .other:
+            return """
+            Recibido para "\(title)".
+            Si me dices el resultado que buscas en "\(context)", te propongo una respuesta concreta y la refinamos en conjunto.
+            """
+        }
     }
 }
 

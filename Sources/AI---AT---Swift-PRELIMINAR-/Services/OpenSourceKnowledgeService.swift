@@ -91,6 +91,7 @@ public struct OpenSourceKnowledgeService: OpenSourceKnowledgeProviding {
 
     private static func makeSession() -> URLSession {
         let configuration = URLSessionConfiguration.default
+        // Keep external API calls responsive in chat UX while allowing short network jitter.
         configuration.timeoutIntervalForRequest = 10
         configuration.timeoutIntervalForResource = 20
         return URLSession(configuration: configuration)
@@ -149,7 +150,7 @@ private struct WikipediaOpenSearchPayload: Decodable {
 
     init(from decoder: Decoder) throws {
         var container = try decoder.unkeyedContainer()
-        // Wikipedia OpenSearch devuelve primero el texto de búsqueda original.
+        // Wikipedia OpenSearch returns the original query as the first array element.
         _ = try container.decode(String.self)
         titles = try container.decode([String].self)
         extracts = try container.decode([String].self)
