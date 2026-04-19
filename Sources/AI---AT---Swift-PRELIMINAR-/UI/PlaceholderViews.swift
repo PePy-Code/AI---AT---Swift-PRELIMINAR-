@@ -529,8 +529,8 @@ private struct ActivityLaunchPlaceholderView: View {
 
             Text(
                 isWorkPhase
-                    ? "Siguiente: descanso (\(formattedTime(breakDurationSeconds)))."
-                    : "Siguiente: trabajo (\(formattedTime(workDurationSeconds)))."
+                    ? "Siguiente: descanso (\(formattedTime(breakDurationSeconds)))"
+                    : "Siguiente: trabajo (\(formattedTime(workDurationSeconds)))"
             )
             .font(.caption2)
             .foregroundStyle(.secondary)
@@ -761,8 +761,8 @@ private struct ActivityLaunchPlaceholderView: View {
     private var currentPomodoroPhaseMessage: String {
         let phase = isWorkPhase ? "trabajo" : "descanso"
         return isRunning
-            ? "En curso: temporizador de \(phase)."
-            : "Pausado: temporizador de \(phase)."
+            ? "En curso: temporizador de \(phase)"
+            : "Pausado: temporizador de \(phase)"
     }
 
     private func playPomodoroTransitionSound() {
