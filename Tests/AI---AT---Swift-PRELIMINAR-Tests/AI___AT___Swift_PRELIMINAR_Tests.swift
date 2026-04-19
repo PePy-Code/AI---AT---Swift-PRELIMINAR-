@@ -319,6 +319,18 @@ func appPreferenceStoreUsesDefaultValues() throws {
     #expect(store.timerSoundSystemID == AppPreferenceStore.defaultTimerSoundSystemID)
     #expect(store.notificationsEnabled == true)
     #expect(store.mentalTrainerSuggestionEnabled == true)
+    #expect(store.visualTheme == .system)
+    #expect(store.fontScale == .normal)
+    #expect(store.pomodoroWorkMinutes == 25)
+    #expect(store.pomodoroBreakMinutes == 5)
+    #expect(store.pomodoroLongBreakMinutes == 15)
+    #expect(store.pomodoroCyclesBeforeLongBreak == 4)
+    #expect(store.pomodoroAutoStartNextPhase == false)
+    #expect(store.smartRemindersEnabled == true)
+    #expect(store.dailyGoalMinutes == 90)
+    #expect(store.aiChatHistoryLimit == 30)
+    #expect(store.language == .spanish)
+    #expect(store.wellbeingReminderMinutes == 30)
 }
 
 @Test("Ajustes guardan y recuperan sonido, notificaciones y sugerencias")
@@ -334,13 +346,75 @@ func appPreferenceStorePersistsSettings() throws {
     store.timerSoundSystemID = 1013
     store.notificationsEnabled = false
     store.mentalTrainerSuggestionEnabled = false
+    store.visualTheme = .dark
+    store.fontScale = .large
+    store.pomodoroWorkMinutes = 45
+    store.pomodoroBreakMinutes = 10
+    store.pomodoroLongBreakMinutes = 20
+    store.pomodoroCyclesBeforeLongBreak = 3
+    store.pomodoroAutoStartNextPhase = true
+    store.quietHoursEnabled = true
+    store.quietHoursStartHour = 21
+    store.quietHoursEndHour = 6
+    store.reminderStudyEnabled = true
+    store.reminderTaskEnabled = false
+    store.reminderOtherEnabled = true
+    store.dailyGoalMinutes = 120
+    store.dailyGoalActivitiesCompleted = 4
+    store.dailyGoalTrainerSessions = 2
+    store.aiStoreConversationHistory = false
+    store.aiChatHistoryLimit = 80
+    store.language = .english
+    store.localeIdentifier = "en_US"
+    store.wellbeingReminderMinutes = 25
 
     #expect(store.timerSoundSystemID == 1013)
     #expect(store.notificationsEnabled == false)
     #expect(store.mentalTrainerSuggestionEnabled == false)
+    #expect(store.visualTheme == .dark)
+    #expect(store.fontScale == .large)
+    #expect(store.pomodoroWorkMinutes == 45)
+    #expect(store.pomodoroBreakMinutes == 10)
+    #expect(store.pomodoroLongBreakMinutes == 20)
+    #expect(store.pomodoroCyclesBeforeLongBreak == 3)
+    #expect(store.pomodoroAutoStartNextPhase == true)
+    #expect(store.quietHoursEnabled == true)
+    #expect(store.quietHoursStartHour == 21)
+    #expect(store.quietHoursEndHour == 6)
+    #expect(store.reminderTaskEnabled == false)
+    #expect(store.dailyGoalMinutes == 120)
+    #expect(store.dailyGoalActivitiesCompleted == 4)
+    #expect(store.dailyGoalTrainerSessions == 2)
+    #expect(store.aiStoreConversationHistory == false)
+    #expect(store.aiChatHistoryLimit == 80)
+    #expect(store.language == .english)
+    #expect(store.localeIdentifier == "en_US")
+    #expect(store.wellbeingReminderMinutes == 25)
 
     store.timerSoundSystemID = nil
     #expect(store.timerSoundSystemID == nil)
+}
+
+@Test("Horario silencioso identifica correctamente periodos cruzando medianoche")
+func appPreferencesQuietHoursAcrossMidnight() async throws {
+    let originalEnabled = AppPreferences.quietHoursEnabled
+    let originalStart = AppPreferences.quietHoursStartHour
+    let originalEnd = AppPreferences.quietHoursEndHour
+    defer {
+        AppPreferences.quietHoursEnabled = originalEnabled
+        AppPreferences.quietHoursStartHour = originalStart
+        AppPreferences.quietHoursEndHour = originalEnd
+    }
+
+    AppPreferences.quietHoursEnabled = true
+    AppPreferences.quietHoursStartHour = 22
+    AppPreferences.quietHoursEndHour = 7
+    let calendar = Calendar(identifier: .gregorian)
+    let nightDate = calendar.date(from: DateComponents(year: 2026, month: 4, day: 19, hour: 23, minute: 0))!
+    let dayDate = calendar.date(from: DateComponents(year: 2026, month: 4, day: 19, hour: 14, minute: 0))!
+
+    #expect(AppPreferences.isWithinQuietHours(date: nightDate, calendar: calendar) == true)
+    #expect(AppPreferences.isWithinQuietHours(date: dayDate, calendar: calendar) == false)
 }
 
 @Test("Parser local extrae material con fuentes desde JSON")

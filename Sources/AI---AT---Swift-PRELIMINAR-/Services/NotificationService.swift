@@ -57,7 +57,8 @@ public actor EngagementNotificationService {
     public func scheduleDailyReminder(for activities: [Activity], on day: Date? = nil) async -> NotificationMessage {
         let targetDay = day ?? dateProvider.now
         let scheduledAt = withHour(8, minute: 0, for: targetDay)
-        let message = planner.reminderForDay(activities: activities)
+        let message = smartReminderMessage(for: activities) ?? planner.reminderForDay(activities: activities)
+        guard shouldScheduleNotification(at: scheduledAt) else { return message }
         await scheduler.schedule(message, id: "daily-reminder-\(dayKey(for: targetDay))", on: scheduledAt)
         return message
     }
@@ -67,6 +68,7 @@ public actor EngagementNotificationService {
         let targetDay = day ?? dateProvider.now
         let scheduledAt = withHour(17, minute: 30, for: targetDay)
         let message = planner.mentalTrainingMotivation(streakDays: streakDays)
+        guard shouldScheduleNotification(at: scheduledAt) else { return message }
         await scheduler.schedule(message, id: "mental-motivation-\(dayKey(for: targetDay))", on: scheduledAt)
         return message
     }
@@ -81,6 +83,7 @@ public actor EngagementNotificationService {
         let clampedSeconds = max(remainingSeconds, 0)
         let endsAt = startedAt.addingTimeInterval(TimeInterval(clampedSeconds))
         let message = planner.pomodoroFinishReminder(activityTitle: activityTitle)
+        guard shouldScheduleNotification(at: endsAt) else { return message }
         let activitySlug = sanitize(activityTitle)
         await scheduler.schedule(
             message,
@@ -119,6 +122,42 @@ public actor EngagementNotificationService {
             .replacingOccurrences(of: "--", with: "-")
             .trimmingCharacters(in: CharacterSet(charactersIn: "-"))
         return slug.isEmpty ? "actividad" : slug
+    }
+
+    private func shouldScheduleNotification(at date: Date) -> Bool {
+        AppPreferences.notificationsEnabled && !AppPreferences.isWithinQuietHours(date: date, calendar: calendar)
+    }
+
+    private func smartReminderMessage(for activities: [Activity]) -> NotificationMessage? {
+        guard AppPreferences.smartRemindersEnabled else { return nil }
+        let allowed = allowedReminderTypes()
+        guard let preferred = activities.first(where: { allowed.contains($0.type) }) else { return nil }
+        switch preferred.type {
+        case .study:
+            return NotificationMessage(
+                title: "Sesión de estudio sugerida",
+                body: "Prioriza una sesión de estudio para \(preferred.topic). Un bloque corto hoy te acerca a tu meta."
+            )
+        case .task:
+            return NotificationMessage(
+                title: "Tarea clave del día",
+                body: "Empieza por \(preferred.title) y desbloquea el resto de tu agenda con más calma."
+            )
+        case .other:
+            return NotificationMessage(
+                title: "Actividad rápida recomendada",
+                body: "Dedica unos minutos a \(preferred.title) para mantener el ritmo de tu planificación."
+            )
+        }
+    }
+
+    private func allowedReminderTypes() -> Set<ActivityType> {
+        var allowed = Set<ActivityType>()
+        if AppPreferences.reminderStudyEnabled { allowed.insert(.study) }
+        if AppPreferences.reminderTaskEnabled { allowed.insert(.task) }
+        if AppPreferences.reminderOtherEnabled { allowed.insert(.other) }
+        if allowed.isEmpty { allowed = Set(ActivityType.allCases) }
+        return allowed
     }
 }
 

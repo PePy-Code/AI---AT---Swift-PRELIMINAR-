@@ -8,7 +8,14 @@ import AudioToolbox
 #endif
 #if canImport(UserNotifications)
 import UserNotifications
-
+#endif
+#if canImport(UIKit)
+import UIKit
+#endif
+#if canImport(AppKit)
+import AppKit
+#endif
+#if canImport(UserNotifications)
 // Delegate that allows local notifications to appear as banners even when the
 // app is in the foreground (without this, iOS silently drops them).
 private final class PomodoroNotificationDelegate: NSObject, UNUserNotificationCenterDelegate, @unchecked Sendable {
@@ -33,6 +40,7 @@ private func requestPomodoroNotificationPermission() {
 // Schedule an immediate local notification.  Safe to call from any thread.
 private func schedulePomodoroNotification(title: String, body: String) {
     guard AppPreferences.notificationsEnabled else { return }
+    guard !AppPreferences.isWithinQuietHours(date: Date()) else { return }
     let center = UNUserNotificationCenter.current()
     let content = UNMutableNotificationContent()
     content.title = title
@@ -52,6 +60,14 @@ private func playConfiguredPomodoroSound() {
     guard let soundID = AppPreferences.timerSoundSystemID else { return }
     AudioServicesPlaySystemSound(SystemSoundID(soundID))
     #endif
+}
+
+private func localizedText(es: String, en: String) -> String {
+    AppPreferences.language == .english ? en : es
+}
+
+private func appLocale() -> Locale {
+    Locale(identifier: AppPreferences.localeIdentifier)
 }
 
 public struct HomeView: View {
@@ -96,6 +112,8 @@ public struct HomeView: View {
                     .padding()
                     .background(Color(.secondarySystemBackground))
                     .clipShape(RoundedRectangle(cornerRadius: 12))
+
+                    dailyGoalsCard
 
                     Button {
                         openPersonalChatbot = true
@@ -236,6 +254,9 @@ public struct HomeView: View {
                 }
             }
         }
+        .preferredColorScheme(preferredColorScheme)
+        .environment(\.dynamicTypeSize, preferredDynamicTypeSize)
+        .environment(\.colorSchemeContrast, AppPreferences.highContrastEnabled ? .increased : .standard)
     }
 
     private var menuAgendaTable: some View {
@@ -277,6 +298,29 @@ public struct HomeView: View {
         }
         .padding()
         .background(Color(.secondarySystemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    private var dailyGoalsCard: some View {
+        let completedActivities = todayActivities.filter { $0.status == .completed }.count
+        let trainerSessions = MentalTrainingStreakStore.completionCount(on: Date(), calendar: calendar)
+        let estimatedStudyMinutes = completedActivities * AppPreferences.pomodoroWorkMinutes
+        let minutesGoal = max(AppPreferences.dailyGoalMinutes, 1)
+        let activitiesGoal = max(AppPreferences.dailyGoalActivitiesCompleted, 1)
+        let trainerGoal = max(AppPreferences.dailyGoalTrainerSessions, 1)
+        let summary = localizedText(
+            es: "Meta diaria: \(estimatedStudyMinutes)/\(minutesGoal) min · \(completedActivities)/\(activitiesGoal) actividades · trainer \(trainerSessions)/\(trainerGoal)",
+            en: "Daily goal: \(estimatedStudyMinutes)/\(minutesGoal) min · \(completedActivities)/\(activitiesGoal) activities · trainer \(trainerSessions)/\(trainerGoal)"
+        )
+        return VStack(alignment: .leading, spacing: 6) {
+            Text(localizedText(es: "🎯 Objetivo diario", en: "🎯 Daily goal"))
+                .font(.subheadline.weight(.semibold))
+            Text(summary)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
+        .padding()
+        .background(Color(.tertiarySystemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
@@ -389,7 +433,25 @@ public struct HomeView: View {
     private func shortDate(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "dd/MM"
+        formatter.locale = appLocale()
         return formatter.string(from: date)
+    }
+
+    private var preferredColorScheme: ColorScheme? {
+        switch AppPreferences.visualTheme {
+        case .system: nil
+        case .light: .light
+        case .dark: .dark
+        }
+    }
+
+    private var preferredDynamicTypeSize: DynamicTypeSize {
+        switch AppPreferences.fontScale {
+        case .small: .small
+        case .normal: .large
+        case .large: .xLarge
+        case .extraLarge: .xxLarge
+        }
     }
 
     private var displayedPetSupportMessage: String {
@@ -436,11 +498,6 @@ private struct PersonalChatbotView: View {
     @State private var hasLoaded = false
     private let intelligence = AIConversationService()
     private static let maxActivitiesInSummary = 5
-    private static let hourFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm"
-        return formatter
-    }()
 
     var body: some View {
         VStack(spacing: 12) {
@@ -453,6 +510,9 @@ private struct PersonalChatbotView: View {
             guard !hasLoaded else { return }
             hasLoaded = true
             await seedWelcomeMessage()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .aiChatHistoryCleared)) { _ in
+            Task { await seedWelcomeMessage() }
         }
     }
 
@@ -533,13 +593,13 @@ private struct PersonalChatbotView: View {
         guard !text.isEmpty else { return }
 
         await MainActor.run {
-            messages.append(ActivityChatMessage(role: .user, text: text))
+            appendChatMessage(ActivityChatMessage(role: .user, text: text))
             userInput = ""
         }
 
         let response = await assistantResponse(for: text)
         await MainActor.run {
-            messages.append(ActivityChatMessage(role: .assistant, text: response))
+            appendChatMessage(ActivityChatMessage(role: .assistant, text: response))
         }
     }
 
@@ -617,7 +677,20 @@ private struct PersonalChatbotView: View {
     }
 
     private func hourAndMinute(_ date: Date) -> String {
-        Self.hourFormatter.string(from: date)
+        let formatter = DateFormatter()
+        formatter.locale = appLocale()
+        formatter.dateFormat = "HH:mm"
+        return formatter.string(from: date)
+    }
+
+    private func appendChatMessage(_ message: ActivityChatMessage) {
+        messages.append(message)
+        let keepLimit = AppPreferences.aiStoreConversationHistory
+            ? AppPreferences.aiChatHistoryLimit
+            : 4
+        if messages.count > keepLimit {
+            messages = Array(messages.suffix(keepLimit))
+        }
     }
 }
 
@@ -637,11 +710,12 @@ private struct ActivityLaunchPlaceholderView: View {
     @State private var shouldShowStreakPopup = false
     @State private var isFinishing = false
     @State private var pomodoroTransitionAlert: PomodoroTransitionAlert?
-    @State private var remainingSeconds = 25 * 60
+    @State private var remainingSeconds = max(AppPreferences.pomodoroWorkMinutes, 1) * 60
     @State private var isRunning = true
     @State private var isWorkPhase = true
-    private let workDurationSeconds = 25 * 60
-    private let breakDurationSeconds = 5 * 60
+    @State private var completedWorkCycles = 0
+    @State private var elapsedWellbeingSeconds = 0
+    @State private var wellbeingMessage: String?
     private let ticker = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
     private let intelligence = AIConversationService()
     private let calendar = Calendar.current
@@ -686,16 +760,21 @@ private struct ActivityLaunchPlaceholderView: View {
             guard isRunning else { return }
             if remainingSeconds > 0 {
                 remainingSeconds -= 1
+                processWellbeingTick()
             } else {
                 let wasWorkPhase = isWorkPhase
                 isWorkPhase.toggle()
-                remainingSeconds = isWorkPhase ? workDurationSeconds : breakDurationSeconds
-                isRunning = true
+                if wasWorkPhase {
+                    completedWorkCycles += 1
+                }
+                remainingSeconds = durationForCurrentPhase()
+                isRunning = AppPreferences.pomodoroAutoStartNextPhase
                 pomodoroTransitionAlert = PomodoroTransitionAlert(
                     message: wasWorkPhase
                         ? "¡Hora de descanso!"
                         : "¡Hora de trabajo!"
                 )
+                elapsedWellbeingSeconds = 0
                 playPomodoroTransitionSound()
                 sendPomodoroPhaseNotification(isBreak: wasWorkPhase)
             }
@@ -770,6 +849,9 @@ private struct ActivityLaunchPlaceholderView: View {
             Task { await handleImageAttachment(item: newValue) }
         }
         #endif
+        .onReceive(NotificationCenter.default.publisher(for: .aiChatHistoryCleared)) { _ in
+            messages = []
+        }
     }
 
     private var pomodoroCard: some View {
@@ -796,11 +878,17 @@ private struct ActivityLaunchPlaceholderView: View {
 
             Text(
                 isWorkPhase
-                    ? "Próxima fase: descanso (\(formattedTime(breakDurationSeconds)))"
-                    : "Próxima fase: trabajo (\(formattedTime(workDurationSeconds)))"
+                    ? "Próxima fase: descanso (\(formattedTime(nextBreakDurationSeconds())))"
+                    : "Próxima fase: trabajo (\(formattedTime(workDurationSeconds())))"
             )
             .font(.caption2)
             .foregroundStyle(.secondary)
+
+            if let wellbeingMessage {
+                Text(wellbeingMessage)
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+            }
 
             HStack(spacing: 10) {
                 Button(isRunning ? "Pausar" : "Iniciar") {
@@ -811,7 +899,10 @@ private struct ActivityLaunchPlaceholderView: View {
                 Button("Reiniciar") {
                     isRunning = false
                     isWorkPhase = true
-                    remainingSeconds = workDurationSeconds
+                    remainingSeconds = workDurationSeconds()
+                    completedWorkCycles = 0
+                    elapsedWellbeingSeconds = 0
+                    wellbeingMessage = nil
                 }
                 .buttonStyle(.bordered)
 
@@ -919,6 +1010,11 @@ private struct ActivityLaunchPlaceholderView: View {
         _ = try? await agendaService.startActivity(id: activity.id)
         await MainActor.run {
             messages = []
+            isWorkPhase = true
+            completedWorkCycles = 0
+            remainingSeconds = workDurationSeconds()
+            wellbeingMessage = nil
+            elapsedWellbeingSeconds = 0
         }
     }
 
@@ -927,13 +1023,13 @@ private struct ActivityLaunchPlaceholderView: View {
         guard !text.isEmpty else { return }
 
         await MainActor.run {
-            messages.append(ActivityChatMessage(role: .user, text: text))
+            appendChatMessage(ActivityChatMessage(role: .user, text: text))
             userInput = ""
         }
 
         let response = await assistantResponse(for: text)
         await MainActor.run {
-            messages.append(ActivityChatMessage(role: .assistant, text: response))
+            appendChatMessage(ActivityChatMessage(role: .assistant, text: response))
         }
     }
 
@@ -980,7 +1076,7 @@ private struct ActivityLaunchPlaceholderView: View {
             sizeText = "sin tamaño"
         }
         await MainActor.run {
-            messages.append(ActivityChatMessage(role: .user, text: "Compartí una imagen (\(sizeText)) para revisión.", isImageAttachment: true))
+            appendChatMessage(ActivityChatMessage(role: .user, text: "Compartí una imagen (\(sizeText)) para revisión.", isImageAttachment: true))
         }
         let supportContext = [activity.title, normalizedTopic]
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
@@ -989,7 +1085,7 @@ private struct ActivityLaunchPlaceholderView: View {
         let support = (try? await intelligence.supportMaterial(for: supportContext, type: activity.type)) ?? []
         let bulletText = support.isEmpty ? "" : "\n" + support.map { "• \($0)" }.joined(separator: "\n")
         await MainActor.run {
-            messages.append(
+            appendChatMessage(
                 ActivityChatMessage(
                     role: .assistant,
                     text: "Gracias por la imagen. Te doy retroalimentación general y cómo mejorar tu trabajo con estas fuentes:\(bulletText)"
@@ -1001,8 +1097,8 @@ private struct ActivityLaunchPlaceholderView: View {
     #else
     private func addSimulatedImageAttachment() async {
         await MainActor.run {
-            messages.append(ActivityChatMessage(role: .user, text: "Compartí una imagen para revisión.", isImageAttachment: true))
-            messages.append(ActivityChatMessage(role: .assistant, text: "Recibí tu imagen. Puedo darte retroalimentación y fuentes para mejorar tu actividad."))
+            appendChatMessage(ActivityChatMessage(role: .user, text: "Compartí una imagen para revisión.", isImageAttachment: true))
+            appendChatMessage(ActivityChatMessage(role: .assistant, text: "Recibí tu imagen. Puedo darte retroalimentación y fuentes para mejorar tu actividad."))
         }
     }
     #endif
@@ -1069,6 +1165,69 @@ private struct ActivityLaunchPlaceholderView: View {
         let body = isBreak ? "¡Hora de descanso!" : "¡Hora de trabajo!"
         schedulePomodoroNotification(title: "Pomodoro", body: body)
         #endif
+    }
+
+    private func workDurationSeconds() -> Int {
+        max(AppPreferences.pomodoroWorkMinutes, 1) * 60
+    }
+
+    private func shortBreakDurationSeconds() -> Int {
+        max(AppPreferences.pomodoroBreakMinutes, 1) * 60
+    }
+
+    private func longBreakDurationSeconds() -> Int {
+        max(AppPreferences.pomodoroLongBreakMinutes, 1) * 60
+    }
+
+    private func nextBreakDurationSeconds() -> Int {
+        breakDurationSeconds(forCompletedCycles: completedWorkCycles + 1)
+    }
+
+    private func breakDurationSeconds(forCompletedCycles completedCycles: Int) -> Int {
+        let cycleLength = max(AppPreferences.pomodoroCyclesBeforeLongBreak, 1)
+        if completedCycles % cycleLength == 0 {
+            return longBreakDurationSeconds()
+        }
+        return shortBreakDurationSeconds()
+    }
+
+    private func durationForCurrentPhase() -> Int {
+        isWorkPhase ? workDurationSeconds() : breakDurationSeconds(forCompletedCycles: completedWorkCycles)
+    }
+
+    private func processWellbeingTick() {
+        let intervalSeconds = max(AppPreferences.wellbeingReminderMinutes, 5) * 60
+        guard intervalSeconds > 0 else { return }
+        elapsedWellbeingSeconds += 1
+        guard elapsedWellbeingSeconds >= intervalSeconds else { return }
+        elapsedWellbeingSeconds = 0
+        wellbeingMessage = nextWellbeingMessage()
+    }
+
+    private func nextWellbeingMessage() -> String? {
+        var messages: [String] = []
+        if AppPreferences.wellbeingActiveBreakEnabled {
+            messages.append(localizedText(es: "Haz una pausa activa de 1-2 minutos.", en: "Take a 1-2 minute active break."))
+        }
+        if AppPreferences.wellbeingHydrationEnabled {
+            messages.append(localizedText(es: "Toma agua para mantenerte hidratado.", en: "Drink water to stay hydrated."))
+        }
+        if AppPreferences.wellbeingEyeRestEnabled {
+            messages.append(localizedText(es: "Descansa la vista: mira a lo lejos 20 segundos.", en: "Rest your eyes: look into the distance for 20 seconds."))
+        }
+        guard !messages.isEmpty else { return nil }
+        let index = completedWorkCycles % messages.count
+        return messages[index]
+    }
+
+    private func appendChatMessage(_ message: ActivityChatMessage) {
+        messages.append(message)
+        let keepLimit = AppPreferences.aiStoreConversationHistory
+            ? AppPreferences.aiChatHistoryLimit
+            : 4
+        if messages.count > keepLimit {
+            messages = Array(messages.suffix(keepLimit))
+        }
     }
 }
 
@@ -1615,7 +1774,7 @@ public struct AgendaView: View {
 
                 PomodoroTimerView(
                     title: "Pomodoro: \(active.title)",
-                    initialSeconds: 25 * 60,
+                    initialSeconds: max(AppPreferences.pomodoroWorkMinutes, 1) * 60,
                     onTimerScheduled: { remainingSeconds in
                         guard AppPreferences.notificationsEnabled else {
                             timerNotificationMessage = nil
@@ -2208,9 +2367,67 @@ private struct AppSettingsView: View {
     @State private var timerSoundEnabled = AppPreferences.timerSoundSystemID != nil
     @State private var timerSoundSystemIDText = "\(AppPreferences.timerSoundSystemID ?? AppPreferenceStore.defaultTimerSoundSystemID)"
     @State private var timerSoundError: String?
+    @State private var visualTheme = AppPreferences.visualTheme
+    @State private var fontScale = AppPreferences.fontScale
+    @State private var highContrastEnabled = AppPreferences.highContrastEnabled
+    @State private var pomodoroWorkMinutes = AppPreferences.pomodoroWorkMinutes
+    @State private var pomodoroBreakMinutes = AppPreferences.pomodoroBreakMinutes
+    @State private var pomodoroLongBreakMinutes = AppPreferences.pomodoroLongBreakMinutes
+    @State private var pomodoroCyclesBeforeLongBreak = AppPreferences.pomodoroCyclesBeforeLongBreak
+    @State private var pomodoroAutoStartNextPhase = AppPreferences.pomodoroAutoStartNextPhase
+    @State private var quietHoursEnabled = AppPreferences.quietHoursEnabled
+    @State private var quietHoursStartHour = AppPreferences.quietHoursStartHour
+    @State private var quietHoursEndHour = AppPreferences.quietHoursEndHour
+    @State private var smartRemindersEnabled = AppPreferences.smartRemindersEnabled
+    @State private var reminderStudyEnabled = AppPreferences.reminderStudyEnabled
+    @State private var reminderTaskEnabled = AppPreferences.reminderTaskEnabled
+    @State private var reminderOtherEnabled = AppPreferences.reminderOtherEnabled
+    @State private var dailyGoalMinutes = AppPreferences.dailyGoalMinutes
+    @State private var dailyGoalActivitiesCompleted = AppPreferences.dailyGoalActivitiesCompleted
+    @State private var dailyGoalTrainerSessions = AppPreferences.dailyGoalTrainerSessions
+    @State private var aiStoreConversationHistory = AppPreferences.aiStoreConversationHistory
+    @State private var aiChatHistoryLimit = AppPreferences.aiChatHistoryLimit
+    @State private var language = AppPreferences.language
+    @State private var localeIdentifier = AppPreferences.localeIdentifier
+    @State private var wellbeingActiveBreakEnabled = AppPreferences.wellbeingActiveBreakEnabled
+    @State private var wellbeingHydrationEnabled = AppPreferences.wellbeingHydrationEnabled
+    @State private var wellbeingEyeRestEnabled = AppPreferences.wellbeingEyeRestEnabled
+    @State private var wellbeingReminderMinutes = AppPreferences.wellbeingReminderMinutes
+    @State private var backupJSON: String?
+    @State private var backupStatusMessage: String?
+    @State private var isExporting = false
+    private let agendaService = AgendaService(persistence: LocalAgendaDatabase())
+    private let mentalService = MentalTrainerService()
+    private let calendar = Calendar.current
 
     var body: some View {
         Form {
+            Section("Tema visual y accesibilidad") {
+                Picker("Tema", selection: $visualTheme) {
+                    Text("Sistema").tag(AppVisualTheme.system)
+                    Text("Claro").tag(AppVisualTheme.light)
+                    Text("Oscuro").tag(AppVisualTheme.dark)
+                }
+                .onChange(of: visualTheme) { _, value in
+                    AppPreferences.visualTheme = value
+                }
+
+                Picker("Tamaño de letra", selection: $fontScale) {
+                    Text("Pequeño").tag(AppFontScale.small)
+                    Text("Normal").tag(AppFontScale.normal)
+                    Text("Grande").tag(AppFontScale.large)
+                    Text("Extra grande").tag(AppFontScale.extraLarge)
+                }
+                .onChange(of: fontScale) { _, value in
+                    AppPreferences.fontScale = value
+                }
+
+                Toggle("Alto contraste", isOn: $highContrastEnabled)
+                    .onChange(of: highContrastEnabled) { _, value in
+                        AppPreferences.highContrastEnabled = value
+                    }
+            }
+
             Section("Pomodoro") {
                 Toggle("Sonido del temporizador", isOn: $timerSoundEnabled)
                     .onChange(of: timerSoundEnabled) { _, isEnabled in
@@ -2244,6 +2461,27 @@ private struct AppSettingsView: View {
                 }
                 .disabled(!timerSoundEnabled)
 
+                Stepper("Trabajo: \(pomodoroWorkMinutes) min", value: $pomodoroWorkMinutes, in: 1...180)
+                    .onChange(of: pomodoroWorkMinutes) { _, value in
+                        AppPreferences.pomodoroWorkMinutes = value
+                    }
+                Stepper("Descanso corto: \(pomodoroBreakMinutes) min", value: $pomodoroBreakMinutes, in: 1...60)
+                    .onChange(of: pomodoroBreakMinutes) { _, value in
+                        AppPreferences.pomodoroBreakMinutes = value
+                    }
+                Stepper("Descanso largo: \(pomodoroLongBreakMinutes) min", value: $pomodoroLongBreakMinutes, in: 1...90)
+                    .onChange(of: pomodoroLongBreakMinutes) { _, value in
+                        AppPreferences.pomodoroLongBreakMinutes = value
+                    }
+                Stepper("Ciclos antes de descanso largo: \(pomodoroCyclesBeforeLongBreak)", value: $pomodoroCyclesBeforeLongBreak, in: 1...12)
+                    .onChange(of: pomodoroCyclesBeforeLongBreak) { _, value in
+                        AppPreferences.pomodoroCyclesBeforeLongBreak = value
+                    }
+                Toggle("Auto-iniciar siguiente fase", isOn: $pomodoroAutoStartNextPhase)
+                    .onChange(of: pomodoroAutoStartNextPhase) { _, value in
+                        AppPreferences.pomodoroAutoStartNextPhase = value
+                    }
+
                 if let timerSoundError {
                     Text(timerSoundError)
                         .font(.footnote)
@@ -2265,6 +2503,41 @@ private struct AppSettingsView: View {
                         }
                         #endif
                     }
+
+                Toggle("Horario silencioso", isOn: $quietHoursEnabled)
+                    .onChange(of: quietHoursEnabled) { _, value in
+                        AppPreferences.quietHoursEnabled = value
+                    }
+                Stepper("Desde: \(quietHoursStartHour):00", value: $quietHoursStartHour, in: 0...23)
+                    .onChange(of: quietHoursStartHour) { _, value in
+                        AppPreferences.quietHoursStartHour = value
+                    }
+                    .disabled(!quietHoursEnabled)
+                Stepper("Hasta: \(quietHoursEndHour):00", value: $quietHoursEndHour, in: 0...23)
+                    .onChange(of: quietHoursEndHour) { _, value in
+                        AppPreferences.quietHoursEndHour = value
+                    }
+                    .disabled(!quietHoursEnabled)
+
+                Toggle("Recordatorios inteligentes por tipo", isOn: $smartRemindersEnabled)
+                    .onChange(of: smartRemindersEnabled) { _, value in
+                        AppPreferences.smartRemindersEnabled = value
+                    }
+                Toggle("Recordatorios de estudio", isOn: $reminderStudyEnabled)
+                    .onChange(of: reminderStudyEnabled) { _, value in
+                        AppPreferences.reminderStudyEnabled = value
+                    }
+                    .disabled(!smartRemindersEnabled)
+                Toggle("Recordatorios de tarea", isOn: $reminderTaskEnabled)
+                    .onChange(of: reminderTaskEnabled) { _, value in
+                        AppPreferences.reminderTaskEnabled = value
+                    }
+                    .disabled(!smartRemindersEnabled)
+                Toggle("Recordatorios de otras actividades", isOn: $reminderOtherEnabled)
+                    .onChange(of: reminderOtherEnabled) { _, value in
+                        AppPreferences.reminderOtherEnabled = value
+                    }
+                    .disabled(!smartRemindersEnabled)
             }
 
             Section("Entrenador mental") {
@@ -2273,9 +2546,150 @@ private struct AppSettingsView: View {
                         AppPreferences.mentalTrainerSuggestionEnabled = isEnabled
                     }
             }
+
+            Section("Objetivo diario") {
+                Stepper("Minutos de enfoque: \(dailyGoalMinutes)", value: $dailyGoalMinutes, in: 1...720)
+                    .onChange(of: dailyGoalMinutes) { _, value in
+                        AppPreferences.dailyGoalMinutes = value
+                    }
+                Stepper("Actividades completadas: \(dailyGoalActivitiesCompleted)", value: $dailyGoalActivitiesCompleted, in: 1...30)
+                    .onChange(of: dailyGoalActivitiesCompleted) { _, value in
+                        AppPreferences.dailyGoalActivitiesCompleted = value
+                    }
+                Stepper("Sesiones trainer: \(dailyGoalTrainerSessions)", value: $dailyGoalTrainerSessions, in: 1...20)
+                    .onChange(of: dailyGoalTrainerSessions) { _, value in
+                        AppPreferences.dailyGoalTrainerSessions = value
+                    }
+            }
+
+            Section("Respaldo y exportación") {
+                Button(isExporting ? "Generando respaldo..." : "Generar respaldo JSON") {
+                    Task { await generateBackupPayload() }
+                }
+                .disabled(isExporting)
+
+                if let backupStatusMessage {
+                    Text(backupStatusMessage)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+
+                if let backupJSON {
+                    TextEditor(text: .constant(backupJSON))
+                        .font(.footnote.monospaced())
+                        .frame(minHeight: 180)
+                    Button("Copiar respaldo") {
+                        copyBackupToClipboard(backupJSON)
+                    }
+                }
+            }
+
+            Section("Privacidad de IA") {
+                Toggle("Guardar historial de chat local", isOn: $aiStoreConversationHistory)
+                    .onChange(of: aiStoreConversationHistory) { _, value in
+                        AppPreferences.aiStoreConversationHistory = value
+                    }
+                Stepper("Límite de mensajes en historial: \(aiChatHistoryLimit)", value: $aiChatHistoryLimit, in: 4...500)
+                    .onChange(of: aiChatHistoryLimit) { _, value in
+                        AppPreferences.aiChatHistoryLimit = value
+                    }
+                    .disabled(!aiStoreConversationHistory)
+                Button("Limpiar historial de chat ahora", role: .destructive) {
+                    NotificationCenter.default.post(name: .aiChatHistoryCleared, object: nil)
+                }
+            }
+
+            Section("Idioma y formato regional") {
+                Picker("Idioma", selection: $language) {
+                    Text("Español").tag(AppLanguage.spanish)
+                    Text("English").tag(AppLanguage.english)
+                }
+                .onChange(of: language) { _, value in
+                    AppPreferences.language = value
+                }
+
+                TextField("Locale ID (ej. es_MX, en_US)", text: $localeIdentifier)
+                    .onSubmit {
+                        AppPreferences.localeIdentifier = localeIdentifier
+                        localeIdentifier = AppPreferences.localeIdentifier
+                    }
+            }
+
+            Section("Descanso y bienestar") {
+                Toggle("Pausas activas", isOn: $wellbeingActiveBreakEnabled)
+                    .onChange(of: wellbeingActiveBreakEnabled) { _, value in
+                        AppPreferences.wellbeingActiveBreakEnabled = value
+                    }
+                Toggle("Recordatorio de hidratación", isOn: $wellbeingHydrationEnabled)
+                    .onChange(of: wellbeingHydrationEnabled) { _, value in
+                        AppPreferences.wellbeingHydrationEnabled = value
+                    }
+                Toggle("Descanso visual", isOn: $wellbeingEyeRestEnabled)
+                    .onChange(of: wellbeingEyeRestEnabled) { _, value in
+                        AppPreferences.wellbeingEyeRestEnabled = value
+                    }
+                Stepper("Intervalo de bienestar: \(wellbeingReminderMinutes) min", value: $wellbeingReminderMinutes, in: 5...240)
+                    .onChange(of: wellbeingReminderMinutes) { _, value in
+                        AppPreferences.wellbeingReminderMinutes = value
+                    }
+            }
         }
         .navigationTitle("Ajustes")
     }
+
+    private func generateBackupPayload() async {
+        guard !isExporting else { return }
+        await MainActor.run {
+            isExporting = true
+            backupStatusMessage = nil
+        }
+        let now = Date()
+        let todayActivities = await agendaService.listActivities(on: now, calendar: calendar)
+        let tomorrow = calendar.date(byAdding: .day, value: 1, to: now) ?? now
+        let tomorrowActivities = await agendaService.listActivities(on: tomorrow, calendar: calendar)
+        let streakDays = await StreakComputation.days(endingOn: now, agendaService: agendaService, calendar: calendar)
+        let trainerBest = await mentalService.bestScore()
+        let payload = SettingsBackupPayload(
+            exportedAt: now,
+            preferences: AppPreferences.values(),
+            todayActivities: todayActivities,
+            tomorrowActivities: tomorrowActivities,
+            streakDays: streakDays,
+            trainerBestScore: trainerBest
+        )
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        let data = try? encoder.encode(payload)
+        let output = data.flatMap { String(data: $0, encoding: .utf8) }
+        await MainActor.run {
+            backupJSON = output
+            backupStatusMessage = output == nil ? "No se pudo generar el respaldo." : "Respaldo generado."
+            isExporting = false
+        }
+    }
+
+    private func copyBackupToClipboard(_ text: String) {
+        #if canImport(UIKit)
+        UIPasteboard.general.string = text
+        backupStatusMessage = "Respaldo copiado al portapapeles."
+        #elseif canImport(AppKit)
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
+        backupStatusMessage = "Respaldo copiado al portapapeles."
+        #else
+        backupStatusMessage = "Copia manualmente el contenido del respaldo."
+        #endif
+    }
+}
+
+private struct SettingsBackupPayload: Codable, Sendable {
+    let exportedAt: Date
+    let preferences: AppPreferenceValues
+    let todayActivities: [Activity]
+    let tomorrowActivities: [Activity]
+    let streakDays: Int
+    let trainerBestScore: Int
 }
 
 private enum MentalTrainingStreakStore {
