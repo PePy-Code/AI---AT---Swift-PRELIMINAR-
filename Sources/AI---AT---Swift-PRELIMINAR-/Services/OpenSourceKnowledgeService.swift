@@ -5,30 +5,86 @@ import FoundationNetworking
 
 public struct OpenSourceKnowledgeService: OpenSourceKnowledgeProviding {
     private let session: URLSession
+    private let groqAPIKey: String?
+    private let groqModel: String
 
     public init() {
         self.session = OpenSourceKnowledgeService.makeSession()
+        self.groqAPIKey = ProcessInfo.processInfo.environment["GROQ_API_KEY"]?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        self.groqModel = "llama-3.3-70b-versatile"
     }
 
     public init(session: URLSession) {
         self.session = session
+        self.groqAPIKey = ProcessInfo.processInfo.environment["GROQ_API_KEY"]?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        self.groqModel = "llama-3.3-70b-versatile"
+    }
+
+    init(session: URLSession, groqAPIKey: String?, groqModel: String = "llama-3.3-70b-versatile") {
+        self.session = session
+        self.groqAPIKey = groqAPIKey?.trimmingCharacters(in: .whitespacesAndNewlines)
+        self.groqModel = groqModel
     }
 
     public func answer(for query: String) async -> String? {
         let cleanQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !cleanQuery.isEmpty else { return nil }
 
-        if let answer = try? await duckDuckGoAnswer(for: cleanQuery) {
+        let queryCandidates = normalizedQueryCandidates(from: cleanQuery)
+
+        if let answer = try? await groqAnswer(for: cleanQuery) {
             let trimmed = answer.trimmingCharacters(in: .whitespacesAndNewlines)
             if !trimmed.isEmpty { return trimmed }
         }
 
-        if let answer = try? await wikipediaAnswer(for: cleanQuery) {
-            let trimmed = answer.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !trimmed.isEmpty { return trimmed }
+        for candidate in queryCandidates {
+            if let answer = try? await duckDuckGoAnswer(for: candidate) {
+                let trimmed = answer.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !trimmed.isEmpty { return ensureSpanishResponse(trimmed) }
+            }
+        }
+
+        for candidate in queryCandidates {
+            if let answer = try? await wikipediaAnswer(for: candidate) {
+                let trimmed = answer.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !trimmed.isEmpty { return ensureSpanishResponse(trimmed) }
+            }
         }
 
         return nil
+    }
+
+    private func groqAnswer(for query: String) async throws -> String? {
+        guard let key = groqAPIKey, !key.isEmpty else { return nil }
+        guard let url = URL(string: "https://api.groq.com/openai/v1/chat/completions") else { return nil }
+
+        let requestPayload = GroqChatRequest(
+            model: groqModel,
+            messages: [
+                .init(
+                    role: "system",
+                    content: "Responde siempre en español con información clara, breve y útil para estudiantes. Si no sabes algo, dilo con honestidad."
+                ),
+                .init(role: "user", content: query)
+            ],
+            temperature: 0.2,
+            maxTokens: 320
+        )
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
+        request.httpBody = try JSONEncoder().encode(requestPayload)
+
+        let (data, response) = try await session.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+            return nil
+        }
+        let payload = try JSONDecoder().decode(GroqChatResponse.self, from: data)
+        return payload.choices.first?.message.content
+            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private func duckDuckGoAnswer(for query: String) async throws -> String? {
@@ -96,6 +152,46 @@ public struct OpenSourceKnowledgeService: OpenSourceKnowledgeProviding {
         configuration.timeoutIntervalForResource = 20
         return URLSession(configuration: configuration)
     }
+
+    private func normalizedQueryCandidates(from query: String) -> [String] {
+        let punctuationStripped = query
+            .replacingOccurrences(of: "[¿?¡!.,;:()\\[\\]{}\"'`]", with: " ", options: .regularExpression)
+            .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let keywordQuery = compactKeywords(from: punctuationStripped)
+
+        var candidates: [String] = [query]
+        if !punctuationStripped.isEmpty { candidates.append(punctuationStripped) }
+        if !keywordQuery.isEmpty { candidates.append(keywordQuery) }
+
+        var seen = Set<String>()
+        return candidates.filter { seen.insert($0.lowercased()).inserted }
+    }
+
+    private func compactKeywords(from sentence: String) -> String {
+        let stopwords: Set<String> = [
+            "quien", "quién", "que", "qué", "cual", "cuál", "como", "cómo", "donde", "dónde",
+            "cuando", "cuándo", "por", "para", "de", "del", "la", "el", "los", "las", "un", "una",
+            "unos", "unas", "es", "fue", "son", "era", "me", "mi", "mis", "tu", "tus", "su", "sus",
+            "al", "a", "en", "y", "o", "se", "lo"
+        ]
+        let keywords = sentence
+            .lowercased()
+            .split(separator: " ")
+            .map(String.init)
+            .filter { !$0.isEmpty && !stopwords.contains($0) }
+        return keywords.joined(separator: " ").trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func ensureSpanishResponse(_ text: String) -> String {
+        guard let groqAPIKey, !groqAPIKey.isEmpty else { return text }
+        let spanishCue = [" el ", " la ", " los ", " las ", " de ", " que ", " y ", " en ", "¿", "¡"]
+        let normalized = " \(text.lowercased()) "
+        if spanishCue.contains(where: { normalized.contains($0) }) {
+            return text
+        }
+        return text + "\n\nNota: Si prefieres, puedo reformular esta respuesta en español."
+    }
 }
 
 private struct DuckDuckGoInstantAnswerPayload: Decodable {
@@ -156,4 +252,31 @@ private struct WikipediaOpenSearchPayload: Decodable {
         extracts = try container.decode([String].self)
         links = try container.decode([String].self)
     }
+}
+
+private struct GroqChatRequest: Encodable {
+    let model: String
+    let messages: [GroqChatMessage]
+    let temperature: Double
+    let maxTokens: Int
+
+    enum CodingKeys: String, CodingKey {
+        case model
+        case messages
+        case temperature
+        case maxTokens = "max_tokens"
+    }
+}
+
+private struct GroqChatMessage: Codable {
+    let role: String
+    let content: String
+}
+
+private struct GroqChatResponse: Decodable {
+    let choices: [GroqChatChoice]
+}
+
+private struct GroqChatChoice: Decodable {
+    let message: GroqChatMessage
 }

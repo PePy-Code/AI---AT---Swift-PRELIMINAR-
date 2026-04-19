@@ -1,6 +1,9 @@
 import Testing
 @testable import AI___AT___Swift_PRELIMINAR_
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 @Test("Streak sube cuando todas las actividades del día están completas")
 func streakIncrementsWhenAllActivitiesComplete() async throws {
@@ -397,6 +400,82 @@ func aiConversationServiceDefaultUsesOpenSourceProvider() async throws {
     #expect(answer == "Respuesta externa")
 }
 
+@Test("OpenSourceKnowledgeService soporta preguntas en frase completa y extrae keywords")
+func openSourceKnowledgeServiceHandlesNaturalLanguageQuestions() async throws {
+    let session = makeMockedSession()
+
+    MockURLProtocol.requestHandler = { request in
+        let url = try #require(request.url)
+        let components = URLComponents(url: url, resolvingAgainstBaseURL: false)
+        let query = components?.queryItems?.first(where: { $0.name == "q" })?.value ?? ""
+
+        let payload: [String: Any]
+        if query.lowercased() == "albert einstein" {
+            payload = [
+                "AbstractText": "Albert Einstein fue un físico teórico alemán.",
+                "AbstractURL": "https://es.wikipedia.org/wiki/Albert_Einstein",
+                "RelatedTopics": []
+            ]
+        } else {
+            payload = [
+                "AbstractText": "",
+                "AbstractURL": "",
+                "RelatedTopics": []
+            ]
+        }
+        let data = try JSONSerialization.data(withJSONObject: payload)
+        return (200, data)
+    }
+    defer { MockURLProtocol.requestHandler = nil }
+
+    let service = OpenSourceKnowledgeService(session: session, groqAPIKey: nil)
+    let answer = await service.answer(for: "¿quien fue albert einstein?")
+
+    #expect(answer?.contains("Einstein") == true)
+}
+
+@Test("OpenSourceKnowledgeService usa Groq y responde en español cuando hay API key")
+func openSourceKnowledgeServiceUsesGroqWhenConfigured() async throws {
+    let session = makeMockedSession()
+    var sawGroqRequest = false
+    let lock = NSLock()
+    MockURLProtocol.requestHandler = { request in
+        let url = try #require(request.url)
+        if url.absoluteString.contains("api.groq.com/openai/v1/chat/completions") {
+            lock.lock()
+            sawGroqRequest = true
+            lock.unlock()
+            let payload: [String: Any] = [
+                "choices": [
+                    [
+                        "message": [
+                            "role": "assistant",
+                            "content": "Albert Einstein fue un científico destacado del siglo XX."
+                        ]
+                    ]
+                ]
+            ]
+            let data = try JSONSerialization.data(withJSONObject: payload)
+            return (200, data)
+        }
+
+        let fallbackPayload: [String: Any] = [
+            "AbstractText": "Albert Einstein fue un científico destacado del siglo XX.",
+            "AbstractURL": "https://es.wikipedia.org/wiki/Albert_Einstein",
+            "RelatedTopics": []
+        ]
+        let fallbackData = try JSONSerialization.data(withJSONObject: fallbackPayload)
+        return (200, fallbackData)
+    }
+    defer { MockURLProtocol.requestHandler = nil }
+
+    let service = OpenSourceKnowledgeService(session: session, groqAPIKey: "test-key")
+    let answer = await service.answer(for: "quien fue albert einstein?")
+
+    #expect(sawGroqRequest)
+    #expect(answer?.contains("fue un científico") == true)
+}
+
 private struct MockIntelligence: AIConversationProviding {
     let questionCount: Int
 
@@ -445,4 +524,41 @@ private struct MockOpenSourceKnowledge: OpenSourceKnowledgeProviding {
 
 private struct FixedDateProvider: DateProviding {
     let now: Date
+}
+
+private func makeMockedSession() -> URLSession {
+    let configuration = URLSessionConfiguration.ephemeral
+    configuration.protocolClasses = [MockURLProtocol.self]
+    return URLSession(configuration: configuration)
+}
+
+private final class MockURLProtocol: URLProtocol {
+    nonisolated(unsafe) static var requestHandler: ((URLRequest) throws -> (Int, Data))?
+
+    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+
+    override func startLoading() {
+        guard let handler = MockURLProtocol.requestHandler else {
+            client?.urlProtocol(self, didFailWithError: URLError(.badServerResponse))
+            return
+        }
+
+        do {
+            let (statusCode, data) = try handler(request)
+            let response = HTTPURLResponse(
+                url: request.url ?? URL(string: "https://example.com")!,
+                statusCode: statusCode,
+                httpVersion: nil,
+                headerFields: ["Content-Type": "application/json"]
+            )!
+            client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+            client?.urlProtocol(self, didLoad: data)
+            client?.urlProtocolDidFinishLoading(self)
+        } catch {
+            client?.urlProtocol(self, didFailWithError: error)
+        }
+    }
+
+    override func stopLoading() {}
 }
