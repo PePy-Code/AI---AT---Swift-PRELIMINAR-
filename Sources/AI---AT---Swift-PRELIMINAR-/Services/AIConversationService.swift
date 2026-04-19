@@ -122,8 +122,7 @@ public struct AIConversationService: AIConversationProviding {
         let upcoming = upcomingActivities(
             todayActivities: todayActivities,
             tomorrowActivities: tomorrowActivities,
-            now: now,
-            calendar: calendar
+            now: now
         )
         let prompt = mascotMessagePrompt(
             todayActivities: todayActivities,
@@ -262,18 +261,12 @@ private extension AIConversationService {
     func upcomingActivities(
         todayActivities: [Activity],
         tomorrowActivities: [Activity],
-        now: Date,
-        calendar: Calendar
+        now: Date
     ) -> [Activity] {
         let horizon = now.addingTimeInterval(6 * 60 * 60)
         return (todayActivities + tomorrowActivities)
             .filter { $0.status != .completed && $0.status != .failed }
-            .filter {
-                guard $0.scheduledAt >= now, $0.scheduledAt <= horizon else { return false }
-                let tomorrow = calendar.date(byAdding: .day, value: 1, to: now) ?? now
-                return calendar.isDate($0.scheduledAt, inSameDayAs: now)
-                    || calendar.isDate($0.scheduledAt, inSameDayAs: tomorrow)
-            }
+            .filter { $0.scheduledAt >= now && $0.scheduledAt <= horizon }
             .sorted { $0.scheduledAt < $1.scheduledAt }
     }
 
@@ -319,12 +312,12 @@ private extension AIConversationService {
 
     func sanitizeMascotMessage(_ text: String) -> String {
         let oneLine = text
-            .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+            .replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
             .trimmingCharacters(in: .whitespacesAndNewlines)
         guard !oneLine.isEmpty else { return "" }
         let maxLength = 180
         guard oneLine.count > maxLength else { return oneLine }
-        return oneLine.prefix(maxLength - 1).trimmingCharacters(in: .whitespacesAndNewlines) + "…"
+        return String(oneLine.prefix(maxLength)).trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     func fallbackMascotMessage(
