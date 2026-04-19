@@ -11,6 +11,7 @@ public struct HomeView: View {
     @State private var todayActivities: [Activity] = []
     @State private var tomorrowActivities: [Activity] = []
     @State private var streakState = StreakState()
+    @State private var aiPetSupportMessage: String?
     @State private var hasLoaded = false
     @State private var pendingStartActivity: Activity?
     @State private var activeActivity: Activity?
@@ -19,6 +20,7 @@ public struct HomeView: View {
     @State private var showQuickAddActivity = false
     @State private var openPersonalChatbot = false
     private let agendaService = AgendaService(persistence: LocalAgendaDatabase())
+    private let intelligence = AIConversationService()
     private let calendar = Calendar.current
 
     public init() {}
@@ -57,7 +59,7 @@ public struct HomeView: View {
                                 Text("Roedor")
                                     .font(.caption.weight(.semibold))
                                     .foregroundStyle(.secondary)
-                                Text(petSupportMessage)
+                                Text(displayedPetSupportMessage)
                                     .font(.subheadline)
                                     .foregroundStyle(.secondary)
                                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -100,6 +102,9 @@ public struct HomeView: View {
             .navigationTitle("Menú principal")
             .onAppear {
                 Task { await refreshSummary() }
+            }
+            .onDisappear {
+                aiPetSupportMessage = nil
             }
             .task {
                 guard !hasLoaded else { return }
@@ -214,6 +219,7 @@ public struct HomeView: View {
     @ViewBuilder
     private func agendaCell(for activity: Activity?) -> some View {
         if let activity {
+            let isCompleted = activity.status == .completed
             HStack(spacing: 6) {
                 Button {
                     pendingStartActivity = activity
@@ -231,6 +237,7 @@ public struct HomeView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 8))
                 }
                 .buttonStyle(.plain)
+                .disabled(isCompleted)
 
                 Button {
                     editingActivity = activity
@@ -240,6 +247,7 @@ public struct HomeView: View {
                         .padding(6)
                 }
                 .buttonStyle(.borderless)
+                .disabled(isCompleted)
             }
         } else {
             Button(action: { openWeeklyAgenda = true }) {
@@ -258,9 +266,17 @@ public struct HomeView: View {
         let tomorrowItems = await agendaService.listActivities(on: tomorrow)
         let updatedStreakDays = await StreakComputation.days(endingOn: today, agendaService: agendaService, calendar: calendar)
         let todayReason = await StreakComputation.validationReason(for: today, agendaService: agendaService, calendar: calendar)
+        let generatedPetMessage = await intelligence.mascotSupportMessage(
+            todayActivities: activities,
+            tomorrowActivities: tomorrowItems,
+            streakDays: updatedStreakDays,
+            now: today,
+            calendar: calendar
+        )
         await MainActor.run {
             self.todayActivities = activities
             self.tomorrowActivities = tomorrowItems
+            self.aiPetSupportMessage = generatedPetMessage
             self.streakState = StreakState(
                 days: updatedStreakDays,
                 lastValidatedDay: updatedStreakDays > 0 ? calendar.startOfDay(for: today) : nil,
@@ -312,7 +328,15 @@ public struct HomeView: View {
         return formatter.string(from: date)
     }
 
-    private var petSupportMessage: String {
+    private var displayedPetSupportMessage: String {
+        let generated = aiPetSupportMessage?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if !generated.isEmpty {
+            return generated
+        }
+        return petSupportFallbackMessage
+    }
+
+    private var petSupportFallbackMessage: String {
         if streakState.days >= 7 {
             return "Llevas \(streakState.days) días seguidos. Eso es constancia real. 🔥"
         }
@@ -1159,6 +1183,7 @@ private struct WeeklyAgendaView: View {
                                                     .clipShape(Capsule())
                                                     .contentShape(Rectangle())
                                                     .onLongPressGesture(minimumDuration: 0.5) {
+                                                        guard activity.status != .completed else { return }
                                                         editingActivity = activity
                                                     }
                                             }

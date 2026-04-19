@@ -116,6 +116,18 @@ func agendaStartTaskReturnsSupportMaterial() async throws {
     #expect((session?.supportMaterial.count ?? 0) > 0)
 }
 
+@Test("Actividad finalizada no permite iniciar nueva sesión")
+func agendaDoesNotStartCompletedActivity() async throws {
+    let agenda = AgendaService(intelligence: MockIntelligence())
+    let day = Date(timeIntervalSince1970: 1_710_172_800)
+    let activity = await agenda.createActivity(title: "Repaso", topic: "Cálculo lineal", type: .study, scheduledAt: day)
+
+    _ = await agenda.completeActivity(id: activity.id)
+    let session = try await agenda.startActivity(id: activity.id, now: day)
+
+    #expect(session == nil)
+}
+
 @Test("Actividad puede volver a pendiente desde flujo pomodoro")
 func agendaCanMarkPendingAfterCompletion() async throws {
     let agenda = AgendaService(intelligence: MockIntelligence())
@@ -493,6 +505,68 @@ func aiConversationServiceCleansRepetitiveOpenings() async throws {
     #expect(!answer.lowercased().hasPrefix("claro"))
     #expect(answer.contains("Aquí tienes pasos concretos para avanzar."))
     #expect(!answer.lowercased().contains("claro, te ayudo con eso"))
+}
+
+@Test("AIConversationService genera mensaje de mascota desde proveedor externo")
+func aiConversationServiceGeneratesMascotMessageFromOpenSourceProvider() async throws {
+    let baseDate = Date(timeIntervalSince1970: 1_710_345_600)
+    let calendar = Calendar(identifier: .gregorian)
+    let activity = Activity(
+        title: "Entregar ensayo",
+        topic: "Literatura",
+        type: .task,
+        status: .pending,
+        scheduledAt: baseDate.addingTimeInterval(45 * 60)
+    )
+    let service = AIConversationService(
+        openSourceKnowledge: MockOpenSourceKnowledge(
+            answerProvider: { query in
+                // El prompt usa "Roedor" como nombre de la mascota
+                if query.contains("Roedor") {
+                    return "¡Ánimo! Ya casi es hora de Entregar ensayo, tú puedes. 🎯"
+                }
+                return nil
+            }
+        )
+    )
+
+    let message = await service.mascotSupportMessage(
+        todayActivities: [activity],
+        tomorrowActivities: [],
+        streakDays: 3,
+        now: baseDate,
+        calendar: calendar
+    )
+
+    // El mensaje debe ser no vacío y provenir del proveedor externo
+    #expect(!message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+    #expect(message.contains("Entregar ensayo"))
+}
+
+@Test("AIConversationService usa fallback en mensaje de mascota cuando no hay respuesta externa")
+func aiConversationServiceMascotMessageFallsBackWhenOpenSourceFails() async throws {
+    let baseDate = Date(timeIntervalSince1970: 1_710_345_600)
+    let calendar = Calendar(identifier: .gregorian)
+    let activity = Activity(
+        title: "Repaso de cálculo",
+        topic: "Derivadas",
+        type: .study,
+        status: .notStarted,
+        scheduledAt: baseDate.addingTimeInterval(30 * 60)
+    )
+    let service = AIConversationService(openSourceKnowledge: MockOpenSourceKnowledge(answer: nil))
+
+    let message = await service.mascotSupportMessage(
+        todayActivities: [activity],
+        tomorrowActivities: [],
+        streakDays: 1,
+        now: baseDate,
+        calendar: calendar
+    )
+
+    // Con actividad urgente (30 min), el fallback menciona el título de la actividad
+    #expect(message.contains("Repaso de cálculo"))
+    #expect(!message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
 }
 
 @Test("AIConversationService trivia usa payload JSON del proveedor externo")
