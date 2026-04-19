@@ -2361,10 +2361,37 @@ public struct MentalTrainerView: View {
 }
 
 private struct AppSettingsView: View {
+    private struct TimerSoundOption: Identifiable {
+        let id: Int
+        let title: String
+    }
+
+    private let timerSoundOptions: [TimerSoundOption] = [
+        .init(id: 1000, title: "Sistema 1000"),
+        .init(id: 1001, title: "Sistema 1001"),
+        .init(id: 1002, title: "Sistema 1002"),
+        .init(id: 1003, title: "Sistema 1003"),
+        .init(id: 1004, title: "Sistema 1004"),
+        .init(id: 1005, title: "Sistema 1005"),
+        .init(id: 1006, title: "Sistema 1006"),
+        .init(id: 1007, title: "Sistema 1007"),
+        .init(id: 1008, title: "Sistema 1008"),
+        .init(id: 1009, title: "Sistema 1009"),
+        .init(id: 1010, title: "Sistema 1010"),
+        .init(id: 1011, title: "Sistema 1011"),
+        .init(id: 1012, title: "Sistema 1012"),
+        .init(id: 1013, title: "Sistema 1013"),
+        .init(id: 1014, title: "Sistema 1014"),
+        .init(id: 1015, title: "Sistema 1015"),
+        .init(id: 1016, title: "Sistema 1016"),
+        .init(id: 1020, title: "Sistema 1020")
+    ]
+
     @State private var notificationsEnabled = AppPreferences.notificationsEnabled
     @State private var mentalTrainerSuggestionEnabled = AppPreferences.mentalTrainerSuggestionEnabled
     @State private var timerSoundEnabled = AppPreferences.timerSoundSystemID != nil
     @State private var timerSoundSystemIDText = "\(AppPreferences.timerSoundSystemID ?? AppPreferenceStore.defaultTimerSoundSystemID)"
+    @State private var selectedTimerSoundID = AppPreferences.timerSoundSystemID ?? AppPreferenceStore.defaultTimerSoundSystemID
     @State private var timerSoundError: String?
     @State private var visualTheme = AppPreferences.visualTheme
     @State private var fontScale = AppPreferences.fontScale
@@ -2398,6 +2425,14 @@ private struct AppSettingsView: View {
     private let agendaService = AgendaService(persistence: LocalAgendaDatabase())
     private let mentalService = MentalTrainerService()
     private let calendar = Calendar.current
+    
+    private var availableTimerSoundOptions: [TimerSoundOption] {
+        if timerSoundOptions.contains(where: { $0.id == selectedTimerSoundID }) {
+            return timerSoundOptions
+        }
+        return (timerSoundOptions + [.init(id: selectedTimerSoundID, title: "Personalizado \(selectedTimerSoundID)")])
+            .sorted { $0.id < $1.id }
+    }
 
     var body: some View {
         Form {
@@ -2435,11 +2470,27 @@ private struct AppSettingsView: View {
                         } else if AppPreferences.timerSoundSystemID == nil {
                             AppPreferences.timerSoundSystemID = AppPreferenceStore.defaultTimerSoundSystemID
                             timerSoundSystemIDText = "\(AppPreferenceStore.defaultTimerSoundSystemID)"
+                            selectedTimerSoundID = AppPreferenceStore.defaultTimerSoundSystemID
                         }
                     }
 
                 TextField("ID de sonido del sistema iOS (ej. 1005)", text: $timerSoundSystemIDText)
                     .disabled(!timerSoundEnabled)
+                
+                Picker("Sonidos del sistema (scroll)", selection: $selectedTimerSoundID) {
+                    ForEach(availableTimerSoundOptions) { option in
+                        Text(option.title).tag(option.id)
+                    }
+                }
+                .pickerStyle(.wheel)
+                .frame(height: 120)
+                .disabled(!timerSoundEnabled)
+                .onChange(of: selectedTimerSoundID) { _, soundID in
+                    guard timerSoundEnabled else { return }
+                    AppPreferences.timerSoundSystemID = soundID
+                    timerSoundSystemIDText = "\(soundID)"
+                    timerSoundError = nil
+                }
 
                 Button("Guardar sonido") {
                     guard timerSoundEnabled else {
@@ -2451,6 +2502,7 @@ private struct AppSettingsView: View {
                         return
                     }
                     AppPreferences.timerSoundSystemID = soundID
+                    selectedTimerSoundID = soundID
                     timerSoundError = nil
                 }
                 .disabled(!timerSoundEnabled)
