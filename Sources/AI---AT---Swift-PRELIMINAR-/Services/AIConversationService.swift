@@ -111,6 +111,44 @@ public struct AIConversationService: AIConversationProviding {
             difficulty: validatedDifficulty
         )
     }
+
+    public func mascotSupportMessage(
+        todayActivities: [Activity],
+        tomorrowActivities: [Activity],
+        streakDays: Int,
+        now: Date = Date(),
+        calendar: Calendar = .current
+    ) async -> String {
+        let upcoming = upcomingActivities(
+            todayActivities: todayActivities,
+            tomorrowActivities: tomorrowActivities,
+            now: now,
+            calendar: calendar
+        )
+        let prompt = mascotMessagePrompt(
+            todayActivities: todayActivities,
+            tomorrowActivities: tomorrowActivities,
+            upcomingActivities: upcoming,
+            streakDays: streakDays,
+            now: now,
+            calendar: calendar
+        )
+
+        if let aiAnswer = await openSourceKnowledge.answer(for: prompt) {
+            let cleaned = sanitizeMascotMessage(aiAnswer)
+            if !cleaned.isEmpty {
+                return cleaned
+            }
+        }
+
+        return fallbackMascotMessage(
+            todayActivities: todayActivities,
+            tomorrowActivities: tomorrowActivities,
+            upcomingActivities: upcoming,
+            streakDays: streakDays,
+            now: now
+        )
+    }
 }
 
 private extension AIConversationService {
@@ -219,6 +257,95 @@ private extension AIConversationService {
         - correctOptionIndex entre 0 y 3.
         - No incluyas explicación ni texto fuera del JSON.
         """
+    }
+
+    func upcomingActivities(
+        todayActivities: [Activity],
+        tomorrowActivities: [Activity],
+        now: Date,
+        calendar: Calendar
+    ) -> [Activity] {
+        let horizon = now.addingTimeInterval(6 * 60 * 60)
+        return (todayActivities + tomorrowActivities)
+            .filter { $0.status != .completed && $0.status != .failed }
+            .filter {
+                guard $0.scheduledAt >= now, $0.scheduledAt <= horizon else { return false }
+                return calendar.isDateInToday($0.scheduledAt) || calendar.isDateInTomorrow($0.scheduledAt)
+            }
+            .sorted { $0.scheduledAt < $1.scheduledAt }
+    }
+
+    func mascotMessagePrompt(
+        todayActivities: [Activity],
+        tomorrowActivities: [Activity],
+        upcomingActivities: [Activity],
+        streakDays: Int,
+        now: Date,
+        calendar: Calendar
+    ) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "es_ES")
+        formatter.dateFormat = "HH:mm"
+        let upcomingRows = upcomingActivities.prefix(3).map { activity in
+            let dayLabel = calendar.isDateInToday(activity.scheduledAt) ? "hoy" : "mañana"
+            return "- \(activity.title) (\(dayLabel) \(formatter.string(from: activity.scheduledAt)))"
+        }.joined(separator: "\n")
+
+        return """
+        Eres una mascota académica estilo app educativa (tono cercano, alegre y de confianza).
+        Escribe UN SOLO mensaje corto en español (máximo 180 caracteres), sin markdown, sin links, sin listas.
+
+        Objetivo del mensaje:
+        - motivar al estudiante a usar el Trainer,
+        - recordar si hay una actividad cercana a su hora de entrega,
+        - incluir un tip breve de estudio cuando sea natural.
+
+        Datos:
+        - Racha actual: \(streakDays) días.
+        - Actividades de hoy: \(todayActivities.count).
+        - Actividades de mañana: \(tomorrowActivities.count).
+        - Hora actual: \(formatter.string(from: now)).
+
+        Actividades próximas (si existen):
+        \(upcomingRows.isEmpty ? "- Ninguna en próximas 6 horas." : upcomingRows)
+
+        Regla de prioridad:
+        1) Si hay actividad próxima, prioriza recordatorio concreto con hora/título.
+        2) Si no hay, invita a usar el Trainer y da mini tip de enfoque.
+        """
+    }
+
+    func sanitizeMascotMessage(_ text: String) -> String {
+        let oneLine = text
+            .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !oneLine.isEmpty else { return "" }
+        let maxLength = 180
+        guard oneLine.count > maxLength else { return oneLine }
+        return oneLine.prefix(maxLength - 1).trimmingCharacters(in: .whitespacesAndNewlines) + "…"
+    }
+
+    func fallbackMascotMessage(
+        todayActivities: [Activity],
+        tomorrowActivities: [Activity],
+        upcomingActivities: [Activity],
+        streakDays: Int,
+        now: Date
+    ) -> String {
+        if let next = upcomingActivities.first {
+            let minutes = max(Int(next.scheduledAt.timeIntervalSince(now) / 60), 0)
+            if minutes <= 90 {
+                return "👀 ¡Ojo! En \(minutes) min toca \"\(next.title)\". Ciérralo y luego te lanzas al Trainer."
+            }
+            return "🕒 Próxima misión: \"\(next.title)\". Prepárate con 10 min de enfoque y después un round de Trainer."
+        }
+        if todayActivities.isEmpty && tomorrowActivities.isEmpty {
+            return "🐭 ¿Un mini reto? Haz 1 ronda de Trainer y luego 20 min de estudio con pausas cortas."
+        }
+        if streakDays >= 7 {
+            return "🔥 Vas con todo (\(streakDays) días). Mantén el ritmo: 1 ronda de Trainer y tip rápido, repasa en bloques de 25 min."
+        }
+        return "💪 Vamos paso a paso: abre el Trainer para activar foco y usa la regla 25/5 para estudiar sin saturarte."
     }
 }
 
