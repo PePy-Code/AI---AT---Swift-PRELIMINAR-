@@ -2367,24 +2367,24 @@ private struct AppSettingsView: View {
     }
 
     private let timerSoundOptions: [TimerSoundOption] = [
-        .init(id: 1000, title: "Sistema 1000"),
-        .init(id: 1001, title: "Sistema 1001"),
-        .init(id: 1002, title: "Sistema 1002"),
-        .init(id: 1003, title: "Sistema 1003"),
-        .init(id: 1004, title: "Sistema 1004"),
-        .init(id: 1005, title: "Sistema 1005"),
-        .init(id: 1006, title: "Sistema 1006"),
-        .init(id: 1007, title: "Sistema 1007"),
-        .init(id: 1008, title: "Sistema 1008"),
-        .init(id: 1009, title: "Sistema 1009"),
-        .init(id: 1010, title: "Sistema 1010"),
-        .init(id: 1011, title: "Sistema 1011"),
-        .init(id: 1012, title: "Sistema 1012"),
-        .init(id: 1013, title: "Sistema 1013"),
-        .init(id: 1014, title: "Sistema 1014"),
-        .init(id: 1015, title: "Sistema 1015"),
-        .init(id: 1016, title: "Sistema 1016"),
-        .init(id: 1020, title: "Sistema 1020")
+        .init(id: 1000, title: "Sonido suave"),
+        .init(id: 1001, title: "Sonido claro"),
+        .init(id: 1002, title: "Sonido breve"),
+        .init(id: 1003, title: "Sonido ligero"),
+        .init(id: 1004, title: "Sonido clásico"),
+        .init(id: 1005, title: "Sonido recomendado"),
+        .init(id: 1006, title: "Sonido brillante"),
+        .init(id: 1007, title: "Sonido limpio"),
+        .init(id: 1008, title: "Sonido corto"),
+        .init(id: 1009, title: "Sonido medio"),
+        .init(id: 1010, title: "Sonido firme"),
+        .init(id: 1011, title: "Sonido alerta"),
+        .init(id: 1012, title: "Sonido campana"),
+        .init(id: 1013, title: "Sonido timbre"),
+        .init(id: 1014, title: "Sonido tono alto"),
+        .init(id: 1015, title: "Sonido tono bajo"),
+        .init(id: 1016, title: "Sonido relajado"),
+        .init(id: 1020, title: "Sonido intenso")
     ]
 
     @State private var notificationsEnabled = AppPreferences.notificationsEnabled
@@ -2430,7 +2430,7 @@ private struct AppSettingsView: View {
         if timerSoundOptions.contains(where: { $0.id == selectedTimerSoundID }) {
             return timerSoundOptions
         }
-        return (timerSoundOptions + [.init(id: selectedTimerSoundID, title: "Personalizado \(selectedTimerSoundID)")])
+        return (timerSoundOptions + [.init(id: selectedTimerSoundID, title: "Sonido personalizado")])
             .sorted { $0.id < $1.id }
     }
 
