@@ -204,9 +204,7 @@ public struct HomeView: View {
             let isCompleted = activity.status == .completed
             HStack(spacing: 6) {
                 Button {
-                    if !isCompleted {
-                        pendingStartActivity = activity
-                    }
+                    pendingStartActivity = activity
                 } label: {
                     HStack(spacing: 6) {
                         Circle()
@@ -224,9 +222,7 @@ public struct HomeView: View {
                 .disabled(isCompleted)
 
                 Button {
-                    if !isCompleted {
-                        editingActivity = activity
-                    }
+                    editingActivity = activity
                 } label: {
                     Image(systemName: "pencil")
                         .font(.caption.weight(.semibold))
