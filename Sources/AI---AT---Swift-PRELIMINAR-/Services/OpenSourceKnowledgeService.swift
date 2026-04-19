@@ -66,9 +66,9 @@ private struct WikipediaOpenSearchPayload: Decodable {
     init(from decoder: Decoder) throws {
         var container = try decoder.unkeyedContainer()
         // Wikipedia OpenSearch devuelve primero el texto de búsqueda original.
-        _ = try? container.decode(String.self)
-        titles = (try? container.decode([String].self)) ?? []
-        extracts = (try? container.decode([String].self)) ?? []
-        links = (try? container.decode([String].self)) ?? []
+        _ = try container.decode(String.self)
+        titles = try container.decode([String].self)
+        extracts = try container.decode([String].self)
+        links = try container.decode([String].self)
     }
 }

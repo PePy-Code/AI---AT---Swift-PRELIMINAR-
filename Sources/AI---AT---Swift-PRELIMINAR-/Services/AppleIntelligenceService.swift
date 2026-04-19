@@ -67,7 +67,6 @@ public struct AppleIntelligenceService: AppleIntelligenceProviding {
         }
 
         let fallbackQuery = [cleanedTitle, cleanedTopic]
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
             .joined(separator: " - ")
         let query = cleanedMessage.isEmpty ? fallbackQuery : cleanedMessage
