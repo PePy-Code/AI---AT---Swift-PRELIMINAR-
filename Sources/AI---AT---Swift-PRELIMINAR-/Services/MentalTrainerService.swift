@@ -55,9 +55,11 @@ public struct ActiveTriviaSession: Sendable {
 }
 
 public actor MentalTrainerService {
+    /// Puntaje mínimo (respuestas correctas) para registrar la racha diaria del trainer
+    /// cuando no hay actividades agendadas en el día.
     public static let trainerScoreThresholdForDailyStreak = 8
     public static let defaultQuestionTimeoutSeconds: TimeInterval = 15
-    private let trainerCategories: [TriviaCategory] = [.math, .history, .popCulture]
+    private let trainerCategories: [TriviaCategory] = [.math, .history, .science, .popCulture]
     private let maxGenerationRetries = 10
     private static let highestScoreKey = "mental-trainer-highest-score"
     private let intelligence: AIConversationProviding
@@ -190,10 +192,13 @@ private extension MentalTrainerService {
     }
 
     func questionFingerprint(for question: TriviaQuestion) -> String {
-        let prompt = question.prompt.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        let options = question.options
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
-            .joined(separator: "|")
-        return "\(question.category.rawValue)|\(prompt)|\(options)|\(question.correctOptionIndex)"
+        var hasher = Hasher()
+        hasher.combine(question.category.rawValue)
+        hasher.combine(question.prompt.trimmingCharacters(in: .whitespacesAndNewlines).lowercased())
+        for option in question.options {
+            hasher.combine(option.trimmingCharacters(in: .whitespacesAndNewlines).lowercased())
+        }
+        hasher.combine(question.correctOptionIndex)
+        return String(hasher.finalize())
     }
 }

@@ -242,11 +242,7 @@ struct LocalFallbackGenerator {
         guard !available.isEmpty else { return [] }
 
         let targetCount = min(count, available.count)
-        var result: [TriviaQuestion] = []
-        for index in 0..<targetCount {
-            result.append(available[index])
-        }
-        return result
+        return Array(available.prefix(targetCount))
     }
 
     private func questionBank(difficulty _: Int) -> [TriviaCategory: [TriviaQuestion]] {

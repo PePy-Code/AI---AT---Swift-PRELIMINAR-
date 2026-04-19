@@ -1461,6 +1461,7 @@ public struct MentalTrainerView: View {
     @State private var trainerAlertStep: TrainerAlertStep?
     @State private var lossAlertMessage = ""
     @State private var countdownTask: Task<Void, Never>?
+    private let answerRevealDelayNanoseconds: UInt64 = 350_000_000
     private let mentalService = MentalTrainerService()
     private let notificationService = AppNotifications.service
     private let agendaService = AgendaService(persistence: LocalAgendaDatabase())
@@ -1675,12 +1676,12 @@ public struct MentalTrainerView: View {
             }
         }
 
-        try? await Task.sleep(nanoseconds: 350_000_000)
+        guard await pauseForAnswerReveal() else { return }
         await MainActor.run {
             correctOptionIndex = feedback.correctOptionIndex
             showCorrectAnswerIndicator = true
         }
-        try? await Task.sleep(nanoseconds: 350_000_000)
+        guard await pauseForAnswerReveal() else { return }
 
         await MainActor.run {
             if feedback.isGameOver {
@@ -1757,6 +1758,15 @@ public struct MentalTrainerView: View {
         guard hasStarted, !questionAnswered, !sessionCompleted, !isGameOver else { return }
         await answer(optionIndex: -1, answerDate: Date())
     }
+
+    private func pauseForAnswerReveal() async -> Bool {
+        do {
+            try await Task.sleep(nanoseconds: answerRevealDelayNanoseconds)
+            return !Task.isCancelled
+        } catch {
+            return false
+        }
+    }
 }
 
 private enum MentalTrainingStreakStore {
@@ -1803,6 +1813,8 @@ private enum MentalTrainingStreakStore {
 }
 
 private enum StreakComputation {
+    // Compatibilidad con sesiones históricas: 5 completadas en un día sin agenda también
+    // califican como día válido de racha aunque ahora exista el criterio por score del trainer.
     private static let mentalTrainingCompletionThreshold = 5
 
     static func days(endingOn day: Date, agendaService: AgendaService, calendar: Calendar) async -> Int {
