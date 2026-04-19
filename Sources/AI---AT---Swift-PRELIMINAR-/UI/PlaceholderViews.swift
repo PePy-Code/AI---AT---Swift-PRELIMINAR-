@@ -819,19 +819,13 @@ private struct ActivityEditSheet: View {
         updated.scheduledAt = scheduledAt
         guard !updated.title.isEmpty, !updated.topic.isEmpty else { return }
         let didUpdate = await agendaService.updateActivity(updated)
-        guard didUpdate else {
-            errorMessage = "No se pudo guardar la actividad. Inténtalo de nuevo."
-            return
-        }
+        guard handleResult(didUpdate, failureMessage: "No se pudo guardar la actividad. Inténtalo de nuevo.") else { return }
         await completeAndDismiss()
     }
 
     private func delete() async {
         let didDelete = await agendaService.deleteActivity(id: activity.id)
-        guard didDelete else {
-            errorMessage = "No se pudo eliminar la actividad. Inténtalo de nuevo."
-            return
-        }
+        guard handleResult(didDelete, failureMessage: "No se pudo eliminar la actividad. Inténtalo de nuevo.") else { return }
         await completeAndDismiss()
     }
 
@@ -840,6 +834,14 @@ private struct ActivityEditSheet: View {
             onDidComplete()
             dismiss()
         }
+    }
+
+    private func handleResult(_ isSuccess: Bool, failureMessage: String) -> Bool {
+        guard isSuccess else {
+            errorMessage = failureMessage
+            return false
+        }
+        return true
     }
 
     private func typeLabel(_ type: ActivityType) -> String {
