@@ -232,7 +232,11 @@ private extension AIConversationService {
         for phrase in openingPhrases where lowered.hasPrefix(phrase) {
             let phraseEnd = trimmed.index(trimmed.startIndex, offsetBy: phrase.count, limitedBy: trimmed.endIndex) ?? trimmed.endIndex
             var remainder = String(trimmed[phraseEnd...])
-            remainder = String(String.UnicodeScalarView(remainder.unicodeScalars.drop(while: { leadingCharacters.contains($0) })))
+            if let firstValidScalar = remainder.unicodeScalars.firstIndex(where: { !leadingCharacters.contains($0) }) {
+                remainder = String(remainder.unicodeScalars[firstValidScalar...])
+            } else {
+                remainder = ""
+            }
             return remainder.trimmingCharacters(in: .whitespacesAndNewlines)
         }
         return trimmed
