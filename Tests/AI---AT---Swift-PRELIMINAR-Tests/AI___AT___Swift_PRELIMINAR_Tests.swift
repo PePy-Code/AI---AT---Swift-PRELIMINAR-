@@ -306,6 +306,43 @@ func engagementNotificationServiceSchedulesNotifications() async throws {
     #expect(scheduled.contains(where: { $0.message.body.contains("racha") }))
 }
 
+@Test("Ajustes usan valores por defecto cuando no hay persistencia previa")
+func appPreferenceStoreUsesDefaultValues() throws {
+    let suiteName = "tests.app-preferences-defaults.\(UUID().uuidString)"
+    guard let defaults = UserDefaults(suiteName: suiteName) else {
+        Issue.record("No se pudo crear UserDefaults de pruebas")
+        return
+    }
+    defaults.removePersistentDomain(forName: suiteName)
+    let store = AppPreferenceStore(defaults: defaults)
+
+    #expect(store.timerSoundSystemID == AppPreferenceStore.defaultTimerSoundSystemID)
+    #expect(store.notificationsEnabled == true)
+    #expect(store.mentalTrainerSuggestionEnabled == true)
+}
+
+@Test("Ajustes guardan y recuperan sonido, notificaciones y sugerencias")
+func appPreferenceStorePersistsSettings() throws {
+    let suiteName = "tests.app-preferences-custom.\(UUID().uuidString)"
+    guard let defaults = UserDefaults(suiteName: suiteName) else {
+        Issue.record("No se pudo crear UserDefaults de pruebas")
+        return
+    }
+    defaults.removePersistentDomain(forName: suiteName)
+    var store = AppPreferenceStore(defaults: defaults)
+
+    store.timerSoundSystemID = 1013
+    store.notificationsEnabled = false
+    store.mentalTrainerSuggestionEnabled = false
+
+    #expect(store.timerSoundSystemID == 1013)
+    #expect(store.notificationsEnabled == false)
+    #expect(store.mentalTrainerSuggestionEnabled == false)
+
+    store.timerSoundSystemID = nil
+    #expect(store.timerSoundSystemID == nil)
+}
+
 @Test("Parser local extrae material con fuentes desde JSON")
 func localAgentParserReadsSupportMaterialWithSources() async throws {
     let response = """

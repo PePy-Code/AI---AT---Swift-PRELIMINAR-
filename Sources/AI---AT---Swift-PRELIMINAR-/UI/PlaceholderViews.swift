@@ -24,6 +24,7 @@ private final class PomodoroNotificationDelegate: NSObject, UNUserNotificationCe
 
 // One-shot setup: request permission and register the foreground delegate.
 private func requestPomodoroNotificationPermission() {
+    guard AppPreferences.notificationsEnabled else { return }
     let center = UNUserNotificationCenter.current()
     center.delegate = PomodoroNotificationDelegate.shared
     center.requestAuthorization(options: [.alert, .sound]) { _, _ in }
@@ -31,6 +32,7 @@ private func requestPomodoroNotificationPermission() {
 
 // Schedule an immediate local notification.  Safe to call from any thread.
 private func schedulePomodoroNotification(title: String, body: String) {
+    guard AppPreferences.notificationsEnabled else { return }
     let center = UNUserNotificationCenter.current()
     let content = UNMutableNotificationContent()
     content.title = title
@@ -45,6 +47,13 @@ private func schedulePomodoroNotification(title: String, body: String) {
 }
 #endif
 
+private func playConfiguredPomodoroSound() {
+    #if canImport(AudioToolbox)
+    guard let soundID = AppPreferences.timerSoundSystemID else { return }
+    AudioServicesPlaySystemSound(SystemSoundID(soundID))
+    #endif
+}
+
 public struct HomeView: View {
     @State private var todayActivities: [Activity] = []
     @State private var tomorrowActivities: [Activity] = []
@@ -57,6 +66,7 @@ public struct HomeView: View {
     @State private var openWeeklyAgenda = false
     @State private var showQuickAddActivity = false
     @State private var openPersonalChatbot = false
+    @State private var openSettings = false
     private let agendaService = AgendaService(persistence: LocalAgendaDatabase())
     private let intelligence = AIConversationService()
     private let calendar = Calendar.current
@@ -138,6 +148,16 @@ public struct HomeView: View {
                 .padding()
             }
             .navigationTitle("Menú principal")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        openSettings = true
+                    } label: {
+                        Image(systemName: "gearshape.fill")
+                    }
+                    .accessibilityLabel("Ajustes")
+                }
+            }
             .onAppear {
                 #if canImport(UserNotifications)
                 requestPomodoroNotificationPermission()
@@ -194,6 +214,9 @@ public struct HomeView: View {
                     tomorrowActivities: tomorrowActivities,
                     streakDays: streakState.days
                 )
+            }
+            .navigationDestination(isPresented: $openSettings) {
+                AppSettingsView()
             }
             .navigationDestination(item: $activeActivity) { activity in
                 ActivityLaunchPlaceholderView(
@@ -693,7 +716,13 @@ private struct ActivityLaunchPlaceholderView: View {
                     title: Text("¡Felicidades!"),
                     message: Text("Terminaste \(activity.title)."),
                     dismissButton: .default(Text("Continuar")) {
-                        finishAlertStep = .mentalTrainingPrompt
+                        if AppPreferences.mentalTrainerSuggestionEnabled {
+                            finishAlertStep = .mentalTrainingPrompt
+                        } else if shouldShowStreakPopup {
+                            finishAlertStep = .streak
+                        } else {
+                            dismiss()
+                        }
                     }
                 )
             case .mentalTrainingPrompt:
@@ -1032,9 +1061,7 @@ private struct ActivityLaunchPlaceholderView: View {
     }
 
     private func playPomodoroTransitionSound() {
-        #if canImport(AudioToolbox)
-        AudioServicesPlaySystemSound(1005)
-        #endif
+        playConfiguredPomodoroSound()
     }
 
     private func sendPomodoroPhaseNotification(isBreak: Bool) {
@@ -1590,6 +1617,10 @@ public struct AgendaView: View {
                     title: "Pomodoro: \(active.title)",
                     initialSeconds: 25 * 60,
                     onTimerScheduled: { remainingSeconds in
+                        guard AppPreferences.notificationsEnabled else {
+                            timerNotificationMessage = nil
+                            return
+                        }
                         Task {
                             let message = await notificationService.schedulePomodoroTimerNotification(
                                 activityTitle: active.title,
@@ -1820,9 +1851,7 @@ public struct PomodoroTimerView: View {
     }
 
     private func playFinishSound() {
-        #if canImport(AudioToolbox)
-        AudioServicesPlaySystemSound(1005)
-        #endif
+        playConfiguredPomodoroSound()
     }
 
     private func sendFinishNotification() {
@@ -1974,6 +2003,7 @@ public struct MentalTrainerView: View {
         .task {
             guard !hasScheduledMotivation else { return }
             hasScheduledMotivation = true
+            guard AppPreferences.notificationsEnabled else { return }
             let message = await notificationService.scheduleMentalTrainingMotivation(on: Date(), streakDays: 0)
             await MainActor.run {
                 scheduledMotivationMessage = message
@@ -2169,6 +2199,82 @@ public struct MentalTrainerView: View {
         } catch {
             return false
         }
+    }
+}
+
+private struct AppSettingsView: View {
+    @State private var notificationsEnabled = AppPreferences.notificationsEnabled
+    @State private var mentalTrainerSuggestionEnabled = AppPreferences.mentalTrainerSuggestionEnabled
+    @State private var timerSoundEnabled = AppPreferences.timerSoundSystemID != nil
+    @State private var timerSoundSystemIDText = "\(AppPreferences.timerSoundSystemID ?? AppPreferenceStore.defaultTimerSoundSystemID)"
+    @State private var timerSoundError: String?
+
+    var body: some View {
+        Form {
+            Section("Pomodoro") {
+                Toggle("Sonido del temporizador", isOn: $timerSoundEnabled)
+                    .onChange(of: timerSoundEnabled) { _, isEnabled in
+                        if !isEnabled {
+                            AppPreferences.timerSoundSystemID = nil
+                        } else if AppPreferences.timerSoundSystemID == nil {
+                            AppPreferences.timerSoundSystemID = AppPreferenceStore.defaultTimerSoundSystemID
+                            timerSoundSystemIDText = "\(AppPreferenceStore.defaultTimerSoundSystemID)"
+                        }
+                    }
+
+                TextField("ID de sonido del sistema iOS (ej. 1005)", text: $timerSoundSystemIDText)
+                    .disabled(!timerSoundEnabled)
+
+                Button("Guardar sonido") {
+                    guard timerSoundEnabled else {
+                        timerSoundError = nil
+                        return
+                    }
+                    guard let soundID = Int(timerSoundSystemIDText.trimmingCharacters(in: .whitespacesAndNewlines)), soundID > 0 else {
+                        timerSoundError = "Ingresa un ID de sonido válido."
+                        return
+                    }
+                    AppPreferences.timerSoundSystemID = soundID
+                    timerSoundError = nil
+                }
+                .disabled(!timerSoundEnabled)
+
+                Button("Probar sonido") {
+                    playConfiguredPomodoroSound()
+                }
+                .disabled(!timerSoundEnabled)
+
+                if let timerSoundError {
+                    Text(timerSoundError)
+                        .font(.footnote)
+                        .foregroundStyle(.red)
+                }
+            }
+
+            Section("Notificaciones") {
+                Toggle("Activar notificaciones de la app", isOn: $notificationsEnabled)
+                    .onChange(of: notificationsEnabled) { _, isEnabled in
+                        AppPreferences.notificationsEnabled = isEnabled
+                        #if canImport(UserNotifications)
+                        if isEnabled {
+                            requestPomodoroNotificationPermission()
+                        } else {
+                            let center = UNUserNotificationCenter.current()
+                            center.removeAllPendingNotificationRequests()
+                            center.removeAllDeliveredNotifications()
+                        }
+                        #endif
+                    }
+            }
+
+            Section("Entrenador mental") {
+                Toggle("Mostrar sugerencia al finalizar actividad", isOn: $mentalTrainerSuggestionEnabled)
+                    .onChange(of: mentalTrainerSuggestionEnabled) { _, isEnabled in
+                        AppPreferences.mentalTrainerSuggestionEnabled = isEnabled
+                    }
+            }
+        }
+        .navigationTitle("Ajustes")
     }
 }
 
