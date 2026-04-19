@@ -15,7 +15,6 @@ public struct HomeView: View {
     @State private var pendingStartActivity: Activity?
     @State private var activeActivity: Activity?
     @State private var editingActivity: Activity?
-    @State private var suppressTapForActivityID: UUID?
     @State private var openWeeklyAgenda = false
     @State private var showQuickAddActivity = false
     private let agendaService = AgendaService(persistence: LocalAgendaDatabase())
@@ -197,29 +196,32 @@ public struct HomeView: View {
     @ViewBuilder
     private func agendaCell(for activity: Activity?) -> some View {
         if let activity {
-            Button {
-                if suppressTapForActivityID == activity.id {
-                    suppressTapForActivityID = nil
-                    return
+            HStack(spacing: 6) {
+                Button {
+                    pendingStartActivity = activity
+                } label: {
+                    HStack(spacing: 6) {
+                        Circle()
+                            .fill(statusColor(for: activity.status))
+                            .frame(width: 8, height: 8)
+                        Text(activity.title)
+                            .lineLimit(1)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .padding(6)
+                    .background(statusColor(for: activity.status).opacity(0.2))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
                 }
-                pendingStartActivity = activity
-            } label: {
-                HStack(spacing: 6) {
-                    Circle()
-                        .fill(statusColor(for: activity.status))
-                        .frame(width: 8, height: 8)
-                    Text(activity.title)
-                        .lineLimit(1)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                .buttonStyle(.plain)
+
+                Button {
+                    editingActivity = activity
+                } label: {
+                    Image(systemName: "pencil")
+                        .font(.caption.weight(.semibold))
+                        .padding(6)
                 }
-                .padding(6)
-                .background(statusColor(for: activity.status).opacity(0.2))
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-            }
-            .buttonStyle(.plain)
-            .onLongPressGesture(minimumDuration: 0.5) {
-                suppressTapForActivityID = activity.id
-                editingActivity = activity
+                .buttonStyle(.borderless)
             }
         } else {
             Button(action: { openWeeklyAgenda = true }) {
@@ -775,6 +777,9 @@ private struct ActivityEditSheet: View {
                     Button("Guardar cambios") {
                         Task { await save() }
                     }
+                    Button("Eliminar actividad", role: .destructive) {
+                        Task { await delete() }
+                    }
                 }
             }
             .navigationTitle("Editar actividad")
@@ -794,6 +799,14 @@ private struct ActivityEditSheet: View {
         updated.scheduledAt = scheduledAt
         guard !updated.title.isEmpty, !updated.topic.isEmpty else { return }
         _ = await agendaService.updateActivity(updated)
+        await MainActor.run {
+            onDidSave()
+            dismiss()
+        }
+    }
+
+    private func delete() async {
+        _ = await agendaService.deleteActivity(id: activity.id)
         await MainActor.run {
             onDidSave()
             dismiss()
