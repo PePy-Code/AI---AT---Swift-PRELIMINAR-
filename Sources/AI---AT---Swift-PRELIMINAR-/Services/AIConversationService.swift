@@ -318,7 +318,7 @@ private extension AIConversationService {
 
     func sanitizeMascotMessage(_ text: String) -> String {
         let oneLine = text
-            .replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
+            .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
             .trimmingCharacters(in: .whitespacesAndNewlines)
         guard !oneLine.isEmpty else { return "" }
         let maxLength = MascotMessageConfig.maxMessageLength
