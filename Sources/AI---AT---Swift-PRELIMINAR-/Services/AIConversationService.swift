@@ -1,9 +1,5 @@
 import Foundation
 
-public protocol OpenSourceKnowledgeProviding: Sendable {
-    func answer(for query: String) async -> String?
-}
-
 public struct AIConversationService: AIConversationProviding {
     private let fallback = LocalFallbackGenerator()
     private let openSourceKnowledge: OpenSourceKnowledgeProviding
@@ -38,6 +34,7 @@ public struct AIConversationService: AIConversationProviding {
 
     public func chatReply(
         userMessage: String,
+        history: [ConversationTurn],
         activityTitle: String,
         topic: String,
         type: ActivityType
@@ -53,7 +50,7 @@ public struct AIConversationService: AIConversationProviding {
         let asksToSolveDirectly = isDirectSolveRequest(cleanedMessage)
         if asksToSolveDirectly {
             let sourceQuery = sourceOnlyPrompt(for: displayContext)
-            if let sourceAnswer = await openSourceKnowledge.answer(for: sourceQuery) {
+            if let sourceAnswer = await openSourceKnowledge.answer(for: sourceQuery, history: history) {
                 let directSources = extractDirectSources(from: sourceAnswer)
                 if !directSources.isEmpty {
                     return refusalWithSources(directSources)
@@ -67,14 +64,16 @@ public struct AIConversationService: AIConversationProviding {
         }
 
         let guardedQuery = guidedChatPrompt(for: query, activityTitle: cleanedTitle, topic: cleanedTopic)
-        if let openAnswer = await openSourceKnowledge.answer(for: query),
+        if let openAnswer = await openSourceKnowledge.answer(for: query, history: history),
            !openAnswer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            return openAnswer.trimmingCharacters(in: .whitespacesAndNewlines)
+            let cleaned = cleanChatResponse(openAnswer)
+            if !cleaned.isEmpty { return cleaned }
         }
 
-        if let guardedOpenAnswer = await openSourceKnowledge.answer(for: guardedQuery),
+        if let guardedOpenAnswer = await openSourceKnowledge.answer(for: guardedQuery, history: history),
            !guardedOpenAnswer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            return guardedOpenAnswer.trimmingCharacters(in: .whitespacesAndNewlines)
+            let cleaned = cleanChatResponse(guardedOpenAnswer)
+            if !cleaned.isEmpty { return cleaned }
         }
 
         return fallbackChatReply(title: cleanedTitle, context: displayContext)
@@ -169,7 +168,7 @@ private extension AIConversationService {
             "soñador pero concreto"
         ]
 
-        /// Temas de bienestar que Chispa puede traer a colación cuando no hay urgencia inmediata.
+        /// Temas de bienestar que Roedor puede traer a colación cuando no hay urgencia inmediata.
         /// Diseñados para estudiantes +15 años que pueden tener dificultades de concentración o TDAH.
         static let wellbeingAngles: [String] = [
             "técnica de enfoque para TDAH: bloques de 10-15 min con pausa activa",
@@ -250,27 +249,74 @@ private extension AIConversationService {
     }
 
     func friendlyGreeting() -> String {
-        "¡Hola! No encontré fuentes directas ahora mismo, pero puedo ayudarte a enfocar tu estudio paso a paso."
+        "Soy Roedor 🐭 No encontré fuentes directas ahora mismo, pero puedo ayudarte a enfocar tu estudio paso a paso."
     }
 
     func refusalWithSources(_ sources: [String]) -> String {
         let bulletList = sources.prefix(3).map { "• \($0)" }.joined(separator: "\n")
-        return """
-        No puedo resolver tareas o ejercicios por ti, pero sí puedo orientarte con fuentes directas de estudio:
-        \(bulletList)
-        """
+        return "Eso tienes que desarrollarlo tú — así es como se aprende de verdad.\n\nTe dejo estas fuentes para orientarte:\n\n\(bulletList)"
     }
 
     func refusalWithoutSources(context: String) -> String {
-        "No puedo resolver tareas o ejercicios por ti. Si quieres, te guío con un plan de estudio sobre \"\(context)\" y te comparto fuentes directas."
+        "Mejor que lo trabajes tú mismo 🐭\n\nSi quieres, armo un plan de estudio sobre \"\(context)\" y te comparto fuentes directas."
     }
 
     func fallbackChatReply(title: String, context: String) -> String {
         let safeTitle = title.isEmpty ? "tu actividad" : title
-        return """
-        Entendido. Puedo ayudarte con "\(safeTitle)" y responder directamente tu consulta sobre "\(context)".
-        Si quieres, dime la pregunta exacta o comparte más contexto para darte una respuesta más precisa.
-        """
+        return cleanChatResponse("Entendido. Puedo ayudarte con \"\(safeTitle)\" sobre \"\(context)\".\n\nDime la pregunta exacta o dame más contexto.")
+    }
+
+    private func cleanChatResponse(_ rawText: String) -> String {
+        var text = rawText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return "" }
+        text = stripCommonOpeningPhrase(from: text)
+
+        // Collapse runs of 3+ newlines down to one blank line between paragraphs.
+        text = text.replacingOccurrences(of: #"\n{3,}"#, with: "\n\n", options: .regularExpression)
+        // Collapse inline multiple spaces/tabs to a single space.
+        text = text.replacingOccurrences(of: #"[ \t]{2,}"#, with: " ", options: .regularExpression)
+
+        // Deduplicate consecutive identical paragraphs while preserving paragraph breaks.
+        let rawParagraphs = text.components(separatedBy: "\n\n")
+        var dedupedParagraphs: [String] = []
+        var seenNormalized = Set<String>()
+        for paragraph in rawParagraphs {
+            let trimmedParagraph = paragraph.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmedParagraph.isEmpty else { continue }
+            let cleanedParagraph = stripCommonOpeningPhrase(from: trimmedParagraph)
+            guard !cleanedParagraph.isEmpty else { continue }
+            let normalized = cleanedParagraph.lowercased()
+            guard !seenNormalized.contains(normalized) else { continue }
+            seenNormalized.insert(normalized)
+            dedupedParagraphs.append(cleanedParagraph)
+        }
+
+        let result = dedupedParagraphs.joined(separator: "\n\n")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return result.isEmpty ? text : result
+    }
+
+    private func stripCommonOpeningPhrase(from text: String) -> String {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return "" }
+        let leadingCharacters = CharacterSet.whitespacesAndNewlines.union(CharacterSet(charactersIn: ",!:.-"))
+
+        let openingPhrases = [
+            "hola", "¡hola!", "claro", "por supuesto", "entiendo",
+            "genial", "perfecto", "buena pregunta", "excelente pregunta"
+        ]
+        let lowered = trimmed.lowercased()
+        for phrase in openingPhrases where lowered.hasPrefix(phrase) {
+            let phraseEnd = trimmed.index(trimmed.startIndex, offsetBy: phrase.count, limitedBy: trimmed.endIndex) ?? trimmed.endIndex
+            var remainder = String(trimmed[phraseEnd...])
+            if let firstValidScalar = remainder.unicodeScalars.firstIndex(where: { !leadingCharacters.contains($0) }) {
+                remainder = String(remainder.unicodeScalars[firstValidScalar...])
+            } else {
+                remainder = ""
+            }
+            return remainder.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        return trimmed
     }
 
     func triviaGenerationPrompt(count: Int, categories: [TriviaCategory], difficulty: Int) -> String {
@@ -336,7 +382,7 @@ private extension AIConversationService {
             .filter { $0.status != .completed && $0.status != .failed }.count
 
         return """
-        Eres Chispa, una pequeña mascota sabia y entrañable, como Pepe Grillo: cercana, algo filósofa, con chispa de humor y mucho cariño.
+        Eres Roedor 🐭, una pequeña mascota sabia y entrañable: cercana, algo filósofa, con humor y mucho cariño.
         Tu misión es acompañar al estudiante (15+ años, puede tener TDAH o dificultades de concentración) con un mensaje fresco y genuino cada vez que abre la app.
 
         Hoy tu humor es: \(mood).
@@ -356,7 +402,7 @@ private extension AIConversationService {
         - Si la racha es alta (7+), celébralo con entusiasmo.
         - Si no hay nada urgente, elige entre: dar el tip de bienestar del día, una reflexión motivacional, un consejo de concentración o una metáfora ingeniosa.
         - El bienestar no es solo estudiar: también vale recordar respirar, moverse, hidratarse o descansar la mente.
-        - Puedes hablar de Chispa en tercera persona ocasionalmente, o en primera.
+        - Puedes hablar de Roedor en tercera persona ocasionalmente, o en primera.
         - Lo único prohibido: repetir la misma estructura de mensaje dos veces seguidas.
         """
     }
@@ -382,7 +428,7 @@ private extension AIConversationService {
             let minutes = max(Int(next.scheduledAt.timeIntervalSince(now) / 60), 0)
             if minutes <= MascotMessageConfig.urgentActivityThresholdMinutes {
                 let urgent = [
-                    "👀 Oye, en \(minutes) min toca \"\(next.title)\"... ¡Chispa confía en ti!",
+                    "👀 Oye, en \(minutes) min toca \"\(next.title)\"... ¡Roedor confía en ti!",
                     "⏰ \(minutes) minutos para \"\(next.title)\". Respira, enfócate y tú puedes.",
                     "🎯 Misión en \(minutes) min: \"\(next.title)\". ¡Tú ya sabes lo que hay que hacer!",
                     "🔔 Psst... \"\(next.title)\" llama en \(minutes) min. ¡Que no te agarre desprevenido!"
@@ -391,7 +437,7 @@ private extension AIConversationService {
             }
             let soon = [
                 "🕒 Antes de que te relajes demasiado: \"\(next.title)\" está en camino. Prepara el terreno.",
-                "📌 Próxima parada: \"\(next.title)\". Chispa ya tiene el cronómetro listo.",
+                "📌 Próxima parada: \"\(next.title)\". Roedor ya tiene el cronómetro listo.",
                 "🌱 Un poco de preparación ahora para \"\(next.title)\" te ahorra estrés después.",
                 "🗂️ \"\(next.title)\" se acerca. Échale un vistazo rápido y llegas con ventaja."
             ]
@@ -400,10 +446,10 @@ private extension AIConversationService {
 
         if streakDays >= 7 {
             let celebration = [
-                "🔥 \(streakDays) días seguidos, ¡eso no es casualidad! Chispa te mira con orgullo.",
+                "🔥 \(streakDays) días seguidos, ¡eso no es casualidad! Roedor te mira con orgullo.",
                 "🏆 \(streakDays) días de racha. Los grillos no aplaudimos, pero si pudiéramos...",
                 "⚡ \(streakDays) días y contando. ¡Deja que el Trainer añada otro escalón hoy!",
-                "🌟 \(streakDays) días. Chispa dice: la constancia construye castillos de conocimiento."
+                "🌟 \(streakDays) días. Roedor dice: la constancia construye castillos de conocimiento."
             ]
             return celebration.randomElement()!
         }
@@ -413,7 +459,7 @@ private extension AIConversationService {
                 "🌿 Día sin agenda, mente libre. ¿Y si le das al Trainer solo 5 minutos?",
                 "🎲 Sin compromisos hoy. Es el momento perfecto para explorar el Trainer sin prisa.",
                 "💭 Agenda en blanco... ¿Qué tal un round de trivia para calentar neuronas?",
-                "🐛 Chispa dice: los días tranquilos son los mejores para aprender algo nuevo."
+                "🐛 Roedor dice: los días tranquilos son los mejores para aprender algo nuevo."
             ]
             return free.randomElement()!
         }
@@ -421,14 +467,14 @@ private extension AIConversationService {
         let general = [
             "💡 Un paso pequeño hoy vale más que un salto perfecto mañana. ¡Dale!",
             "🧠 El Trainer espera. 5 minutos bastan para despertar al cerebro dormido.",
-            "🌀 La técnica Pomodoro: 25 min de enfoque, 5 de descanso. Chispa lo aprueba.",
+            "🌀 La técnica Pomodoro: 25 min de enfoque, 5 de descanso. Roedor lo aprueba.",
             "🎵 Estudiar tiene su ritmo. Encuentra el tuyo y el tiempo vuela solo.",
             "🔑 ¿Sabes qué abre todas las puertas? La constancia. Y tú ya la tienes.",
             "🌈 Cada actividad que cierras es una ficha más en tu tablero. ¡Mueve ficha!",
-            "🦗 Chispa estuvo leyendo: 3 repasos espaciados fijan más que 1 hora seguida.",
-            "🎯 Foco + pausa + foco: la receta secreta de Chispa para el día de hoy.",
+            "🦗 Roedor estuvo leyendo: 3 repasos espaciados fijan más que 1 hora seguida.",
+            "🎯 Foco + pausa + foco: la receta secreta de Roedor para el día de hoy.",
             "📵 Modo avión 20 min y el teléfono deja de robar tu atención. Pruébalo.",
-            "💧 Hidratado y con dos respiraciones profundas antes de empezar. Chispa lo jura.",
+            "💧 Hidratado y con dos respiraciones profundas antes de empezar. Roedor lo jura.",
             "🏃 5 min de movimiento antes de estudiar activan el cerebro mejor que el café.",
             "🎯 Solo el primer paso importa ahora: ábrete a la primera tarea y el resto llega solo.",
             "🔕 Notificaciones en silencio, puerta cerrada, un solo objetivo. Así se entra en zona.",

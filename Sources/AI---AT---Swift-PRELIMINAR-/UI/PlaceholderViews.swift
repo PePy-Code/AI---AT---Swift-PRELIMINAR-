@@ -56,6 +56,7 @@ public struct HomeView: View {
     @State private var editingActivity: Activity?
     @State private var openWeeklyAgenda = false
     @State private var showQuickAddActivity = false
+    @State private var openPersonalChatbot = false
     private let agendaService = AgendaService(persistence: LocalAgendaDatabase())
     private let intelligence = AIConversationService()
     private let calendar = Calendar.current
@@ -86,21 +87,31 @@ public struct HomeView: View {
                     .background(Color(.secondarySystemBackground))
                     .clipShape(RoundedRectangle(cornerRadius: 12))
 
-                    HStack(alignment: .top, spacing: 10) {
-                        Text("🐭")
-                            .font(.largeTitle)
-                        Text(displayedPetSupportMessage)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                            .frame(maxWidth: .infinity, alignment: .leading)
+                    Button {
+                        openPersonalChatbot = true
+                    } label: {
+                        HStack(alignment: .top, spacing: 10) {
+                            Text("🐭")
+                                .font(.largeTitle)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Roedor")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(.secondary)
+                                Text(displayedPetSupportMessage)
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                        }
+                        .padding()
+                        .background(.white)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color(.separator), lineWidth: 1)
+                        )
                     }
-                    .padding()
-                    .background(.white)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(Color(.separator), lineWidth: 1)
-                    )
+                    .buttonStyle(.plain)
 
                     HStack(spacing: 10) {
                         Button {
@@ -176,6 +187,13 @@ public struct HomeView: View {
             }
             .navigationDestination(isPresented: $openWeeklyAgenda) {
                 WeeklyAgendaView(agendaService: agendaService)
+            }
+            .navigationDestination(isPresented: $openPersonalChatbot) {
+                PersonalChatbotView(
+                    todayActivities: todayActivities,
+                    tomorrowActivities: tomorrowActivities,
+                    streakDays: streakState.days
+                )
             }
             .navigationDestination(item: $activeActivity) { activity in
                 ActivityLaunchPlaceholderView(
@@ -361,32 +379,12 @@ public struct HomeView: View {
 
     private var petSupportFallbackMessage: String {
         if streakState.days >= 7 {
-            let msgs = [
-                "🔥 \(streakState.days) días seguidos, ¡Chispa está impresionada!",
-                "⚡ \(streakState.days) días de racha. ¡Hoy suma uno más!",
-                "🌟 Tu constancia habla por ti: \(streakState.days) días en marcha."
-            ]
-            return msgs.randomElement()!
+            return "Llevas \(streakState.days) días seguidos. Eso es constancia real. 🔥"
         }
         if todayActivities.isEmpty {
-            let msgs = [
-                "🌿 Agenda libre hoy. ¿Le damos al Trainer?",
-                "🎲 Día tranquilo: momento ideal para explorar algo nuevo.",
-                "🐛 Chispa dice: los días sin tareas son para aprender por curiosidad.",
-                "💧 Sin actividades. Hidratarte y respirar antes de empezar también cuenta.",
-                "🏃 Día libre: 5 min de movimiento ahora y tu cerebro te lo agradece luego."
-            ]
-            return msgs.randomElement()!
+            return "Sin actividades hoy. Una pequeña tarea marca la diferencia."
         }
-        let msgs = [
-            "💡 Un paso pequeño hoy vale más que un salto mañana.",
-            "🧠 Chispa cargando consejo... mientras tanto, ¡abre una actividad!",
-            "🎯 Foco, pausa, foco: la receta de Chispa para hoy.",
-            "📵 Silencia el teléfono 20 min y notarás la diferencia.",
-            "🧩 Divide la primera tarea en pasos mini y solo mira el primero.",
-            "🎧 Música sin letra + escritorio despejado = modo concentración activado."
-        ]
-        return msgs.randomElement()!
+        return "Un bloque a la vez. Cada paso suma 🐭"
     }
 
     private func statusColor(for status: ActivityStatus) -> Color {
@@ -402,6 +400,201 @@ public struct HomeView: View {
         case .inProgress:
             return .blue
         }
+    }
+}
+
+private struct PersonalChatbotView: View {
+    let todayActivities: [Activity]
+    let tomorrowActivities: [Activity]
+    let streakDays: Int
+
+    @State private var messages: [ActivityChatMessage] = []
+    @State private var userInput = ""
+    @State private var hasLoaded = false
+    private let intelligence = AIConversationService()
+    private static let maxActivitiesInSummary = 5
+    private static let hourFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        return formatter
+    }()
+
+    var body: some View {
+        VStack(spacing: 12) {
+            chatSection
+            chatComposer
+        }
+        .padding()
+        .navigationTitle("Roedor 🐭")
+        .task {
+            guard !hasLoaded else { return }
+            hasLoaded = true
+            await seedWelcomeMessage()
+        }
+    }
+
+    private var chatSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Roedor 🐭")
+                .font(.headline)
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 8) {
+                    ForEach(messages) { message in
+                        HStack {
+                            if message.role == .assistant {
+                                chatBubble(message, alignment: .leading, background: Color(.secondarySystemBackground))
+                                Spacer(minLength: 30)
+                            } else {
+                                Spacer(minLength: 30)
+                                chatBubble(message, alignment: .trailing, background: Color.blue.opacity(0.18))
+                            }
+                        }
+                    }
+                }
+            }
+            .frame(maxHeight: .infinity)
+        }
+    }
+
+    private var chatComposer: some View {
+        VStack(spacing: 8) {
+            HStack(spacing: 8) {
+                TextField("Escribe a Roedor...", text: $userInput, axis: .vertical)
+                    .textFieldStyle(.roundedBorder)
+
+                Button("Enviar") {
+                    Task { await sendUserMessage() }
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(userInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+            Text("Pídele a Roedor consejos, ayuda para organizarte o para recordar actividades.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    @ViewBuilder
+    private func chatBubble(_ message: ActivityChatMessage, alignment: Alignment, background: Color) -> some View {
+        VStack(alignment: alignment == .leading ? .leading : .trailing, spacing: 4) {
+            messageTextView(message.text)
+                .font(.footnote)
+        }
+        .padding(10)
+        .background(background)
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+    }
+
+    @ViewBuilder
+    private func messageTextView(_ text: String) -> some View {
+        if let markdown = try? AttributedString(
+            markdown: text,
+            options: AttributedString.MarkdownParsingOptions(interpretedSyntax: .full)
+        ) {
+            Text(markdown)
+                .tint(.blue)
+        } else {
+            Text(text)
+        }
+    }
+
+    private func seedWelcomeMessage() async {
+        await MainActor.run {
+            messages = [ActivityChatMessage(role: .assistant, text: summaryIntroMessage())]
+        }
+    }
+
+    private func sendUserMessage() async {
+        let text = userInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return }
+
+        await MainActor.run {
+            messages.append(ActivityChatMessage(role: .user, text: text))
+            userInput = ""
+        }
+
+        let response = await assistantResponse(for: text)
+        await MainActor.run {
+            messages.append(ActivityChatMessage(role: .assistant, text: response))
+        }
+    }
+
+    private func assistantResponse(for text: String) async -> String {
+        let agendaContext = agendaContextText
+        let contextualMessage = agendaContext.isEmpty
+            ? text
+            : "\(text)\n\nContexto de agenda personal:\n\(agendaContext)"
+        let history = conversationHistory(excluding: text)
+        let modelReply = (try? await intelligence.chatReply(
+            userMessage: contextualMessage,
+            history: history,
+            activityTitle: "Agenda personal",
+            topic: agendaContext.isEmpty ? "Organización y foco" : agendaContext,
+            type: .other
+        )) ?? ""
+        let cleaned = modelReply.trimmingCharacters(in: .whitespacesAndNewlines)
+        if cleaned.isEmpty {
+            return "Cuéntame qué necesitas organizar hoy 🐭"
+        }
+        return cleaned
+    }
+
+    /// Converts the current messages array into ConversationTurn history,
+    /// excluding the most recently appended user message (which is passed separately).
+    private func conversationHistory(excluding latestUserText: String) -> [ConversationTurn] {
+        var turns = messages.compactMap { msg -> ConversationTurn? in
+            switch msg.role {
+            case .user:
+                return ConversationTurn(role: .user, content: msg.text)
+            case .assistant:
+                return ConversationTurn(role: .assistant, content: msg.text)
+            }
+        }
+        // Drop the last user turn — it was just appended and equals latestUserText.
+        if turns.last?.role == .user, turns.last?.content.hasPrefix(latestUserText) == true {
+            turns.removeLast()
+        }
+        return turns
+    }
+
+    private func summaryIntroMessage() -> String {
+        let todayPending = todayActivities.filter { $0.status != .completed }.count
+        let tomorrowCount = tomorrowActivities.count
+        let streakDayWord = pluralizedWord(for: streakDays, singular: "día", plural: "días")
+        let activityWord = pluralizedWord(for: todayPending, singular: "actividad", plural: "actividades")
+        let streakText = streakDays > 0
+            ? "Llevas una racha de \(streakDays) \(streakDayWord)."
+            : "Aún no tienes racha activa."
+        if todayActivities.isEmpty && tomorrowActivities.isEmpty {
+            return "Hola, soy Roedor 🐭\n\n\(streakText) No tienes actividades programadas.\n\nSi quieres, cuéntame en qué quieres avanzar hoy."
+        }
+        return "Hola, soy Roedor 🐭\n\nHoy tienes \(todayPending) \(activityWord) pendientes y mañana hay \(tomorrowCount) más. \(streakText)\n\n¿En qué te ayudo?"
+    }
+
+    private func pluralizedWord(for count: Int, singular: String, plural: String) -> String {
+        count == 1 ? singular : plural
+    }
+
+    private var agendaContextText: String {
+        let today = summarize(activities: todayActivities, dayLabel: "Hoy")
+        let tomorrow = summarize(activities: tomorrowActivities, dayLabel: "Mañana")
+        return [today, tomorrow]
+            .filter { !$0.isEmpty }
+            .joined(separator: "\n")
+    }
+
+    private func summarize(activities: [Activity], dayLabel: String) -> String {
+        guard !activities.isEmpty else { return "" }
+        let sorted = activities.sorted { $0.scheduledAt < $1.scheduledAt }
+        let items = sorted.prefix(Self.maxActivitiesInSummary).map { activity in
+            "\(hourAndMinute(activity.scheduledAt)) \(activity.title) [\(activity.status.rawValue)]"
+        }.joined(separator: ", ")
+        return "\(dayLabel): \(items)"
+    }
+
+    private func hourAndMinute(_ date: Date) -> String {
+        Self.hourFormatter.string(from: date)
     }
 }
 
@@ -611,7 +804,7 @@ private struct ActivityLaunchPlaceholderView: View {
 
     private var chatSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Asistente 🐭")
+            Text("Roedor 🐭")
                 .font(.headline)
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 8) {
@@ -649,7 +842,7 @@ private struct ActivityLaunchPlaceholderView: View {
                 .buttonStyle(.bordered)
                 #endif
 
-                TextField("Escribe al chatbot...", text: $userInput, axis: .vertical)
+                TextField("Escribe a Roedor...", text: $userInput, axis: .vertical)
                     .textFieldStyle(.roundedBorder)
 
                 Button("Enviar") {
@@ -658,7 +851,7 @@ private struct ActivityLaunchPlaceholderView: View {
                 .buttonStyle(.borderedProminent)
                 .disabled(userInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
-            Text("La IA responde preguntas, explica conceptos y sugiere fuentes abiertas.")
+            Text("Roedor responde preguntas, explica conceptos y sugiere fuentes abiertas.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -716,17 +909,36 @@ private struct ActivityLaunchPlaceholderView: View {
     }
 
     private func assistantResponse(for text: String) async -> String {
+        let history = conversationHistory(excluding: text)
         let modelReply = (try? await intelligence.chatReply(
             userMessage: text,
+            history: history,
             activityTitle: activity.title,
             topic: normalizedTopic,
             type: activity.type
         )) ?? ""
         let cleaned = modelReply.trimmingCharacters(in: .whitespacesAndNewlines)
         if cleaned.isEmpty {
-            return "Cuéntame más detalle de lo que necesitas y te respondo de forma concreta."
+            return "Dame más contexto y te respondo de forma concreta 🐭"
         }
         return cleaned
+    }
+
+    /// Converts the current messages array into ConversationTurn history,
+    /// excluding the most recently appended user message (which is passed separately).
+    private func conversationHistory(excluding latestUserText: String) -> [ConversationTurn] {
+        var turns = messages.compactMap { msg -> ConversationTurn? in
+            switch msg.role {
+            case .user:
+                return ConversationTurn(role: .user, content: msg.text)
+            case .assistant:
+                return ConversationTurn(role: .assistant, content: msg.text)
+            }
+        }
+        if turns.last?.role == .user, turns.last?.content == latestUserText {
+            turns.removeLast()
+        }
+        return turns
     }
 
     #if canImport(PhotosUI)
