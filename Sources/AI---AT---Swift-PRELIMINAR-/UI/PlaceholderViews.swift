@@ -776,7 +776,7 @@ private struct ActivityLaunchPlaceholderView: View {
 
     private func playPomodoroTransitionSound() {
         #if canImport(AudioToolbox)
-        AudioServicesPlaySystemSound(1005)
+        AudioServicesPlaySystemSound(1057)
         #endif
     }
 }
@@ -1472,6 +1472,7 @@ public struct PomodoroTimerView: View {
     @State private var remainingSeconds: Int
     @State private var isRunning = false
     @State private var didFinish = false
+    @State private var showFinishedAlert = false
     private let ticker = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     public init(
@@ -1530,8 +1531,15 @@ public struct PomodoroTimerView: View {
             if remainingSeconds == 0 {
                 isRunning = false
                 didFinish = true
+                showFinishedAlert = true
+                playFinishSound()
                 onTimerFinished?()
             }
+        }
+        .alert("⏰ Pomodoro terminado", isPresented: $showFinishedAlert) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text(title.isEmpty ? "¡Tiempo completado!" : "¡Completaste: \(title)!")
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
@@ -1543,6 +1551,12 @@ public struct PomodoroTimerView: View {
         isRunning = false
         didFinish = false
         remainingSeconds = initialSeconds
+    }
+
+    private func playFinishSound() {
+        #if canImport(AudioToolbox)
+        AudioServicesPlaySystemSound(1057)
+        #endif
     }
 
     private func formattedTime(_ totalSeconds: Int) -> String {
