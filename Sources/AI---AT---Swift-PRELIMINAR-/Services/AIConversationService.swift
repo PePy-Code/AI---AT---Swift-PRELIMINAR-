@@ -222,7 +222,7 @@ private extension AIConversationService {
     private func stripCommonOpeningPhrase(from text: String) -> String {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return "" }
-        let punctuationScalars = CharacterSet(charactersIn: ",!:.-")
+        let leadingCharacters = CharacterSet.whitespacesAndNewlines.union(CharacterSet(charactersIn: ",!:.-"))
 
         let openingPhrases = [
             "hola", "¡hola!", "claro", "por supuesto", "entiendo",
@@ -232,10 +232,7 @@ private extension AIConversationService {
         for phrase in openingPhrases where lowered.hasPrefix(phrase) {
             let phraseEnd = trimmed.index(trimmed.startIndex, offsetBy: phrase.count, limitedBy: trimmed.endIndex) ?? trimmed.endIndex
             var remainder = String(trimmed[phraseEnd...])
-            remainder = String(remainder.drop(while: { scalar in
-                guard let first = scalar.unicodeScalars.first else { return false }
-                return scalar.isWhitespace || punctuationScalars.contains(first)
-            }))
+            remainder = String(String.UnicodeScalarView(remainder.unicodeScalars.drop(while: { leadingCharacters.contains($0) })))
             return remainder.trimmingCharacters(in: .whitespacesAndNewlines)
         }
         return trimmed
