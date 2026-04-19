@@ -18,16 +18,14 @@ public struct OpenSourceKnowledgeService: OpenSourceKnowledgeProviding {
         let cleanQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !cleanQuery.isEmpty else { return nil }
 
-        if let answer = try? await duckDuckGoAnswer(for: cleanQuery),
-           !answer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        if let answer = try? await duckDuckGoAnswer(for: cleanQuery) {
             let trimmed = answer.trimmingCharacters(in: .whitespacesAndNewlines)
-            return trimmed
+            if !trimmed.isEmpty { return trimmed }
         }
 
-        if let answer = try? await wikipediaAnswer(for: cleanQuery),
-           !answer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        if let answer = try? await wikipediaAnswer(for: cleanQuery) {
             let trimmed = answer.trimmingCharacters(in: .whitespacesAndNewlines)
-            return trimmed
+            if !trimmed.isEmpty { return trimmed }
         }
 
         return nil
