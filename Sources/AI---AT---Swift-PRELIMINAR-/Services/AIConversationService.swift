@@ -193,7 +193,7 @@ private extension AIConversationService {
         guard !text.isEmpty else { return "" }
         text = stripCommonOpeningPhrase(from: text)
 
-        // Collapse runs of 3+ blank lines down to two (one blank line between paragraphs).
+        // Collapse runs of 3+ newlines down to one blank line between paragraphs.
         text = text.replacingOccurrences(of: #"\n{3,}"#, with: "\n\n", options: .regularExpression)
         // Collapse inline multiple spaces/tabs to a single space.
         text = text.replacingOccurrences(of: #"[ \t]{2,}"#, with: " ", options: .regularExpression)
