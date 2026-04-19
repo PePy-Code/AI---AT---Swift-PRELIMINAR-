@@ -38,12 +38,13 @@ public struct OpenSourceKnowledgeService: OpenSourceKnowledgeProviding {
 
             let title = titles.first?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
             let extract = extracts.first?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-            let link = links.first?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "Wikipedia"
+            let link = links.first?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
             guard !extract.isEmpty else { return nil }
+            let sourceSuffix = link.isEmpty ? "" : "\n\nFuente abierta: \(link)"
             if title.isEmpty {
-                return "\(extract)\n\nFuente abierta: \(link)"
+                return "\(extract)\(sourceSuffix)"
             }
-            return "\(title): \(extract)\n\nFuente abierta: \(link)"
+            return "\(title): \(extract)\(sourceSuffix)"
         } catch {
             return nil
         }
