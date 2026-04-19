@@ -10,15 +10,13 @@ public struct OpenSourceKnowledgeService: OpenSourceKnowledgeProviding {
 
     public init() {
         self.session = OpenSourceKnowledgeService.makeSession()
-        self.groqAPIKey = ProcessInfo.processInfo.environment["GROQ_API_KEY"]?
-            .trimmingCharacters(in: .whitespacesAndNewlines)
+        self.groqAPIKey = OpenSourceKnowledgeService.resolveGroqAPIKey()
         self.groqModel = "llama-3.3-70b-versatile"
     }
 
     public init(session: URLSession) {
         self.session = session
-        self.groqAPIKey = ProcessInfo.processInfo.environment["GROQ_API_KEY"]?
-            .trimmingCharacters(in: .whitespacesAndNewlines)
+        self.groqAPIKey = OpenSourceKnowledgeService.resolveGroqAPIKey()
         self.groqModel = "llama-3.3-70b-versatile"
     }
 
@@ -151,6 +149,15 @@ public struct OpenSourceKnowledgeService: OpenSourceKnowledgeProviding {
         configuration.timeoutIntervalForRequest = 10
         configuration.timeoutIntervalForResource = 20
         return URLSession(configuration: configuration)
+    }
+
+    private static func resolveGroqAPIKey() -> String? {
+        let envKey = ProcessInfo.processInfo.environment["GROQ_API_KEY"]?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        if let envKey, !envKey.isEmpty { return envKey }
+
+        let localKey = LocalSecrets.groqAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        return localKey.isEmpty ? nil : localKey
     }
 
     private func normalizedQueryCandidates(from query: String) -> [String] {
