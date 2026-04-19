@@ -560,12 +560,25 @@ private struct ActivityLaunchPlaceholderView: View {
                 Label("Imagen adjunta", systemImage: "photo")
                     .font(.caption.weight(.semibold))
             }
-            Text(message.text)
+            messageTextView(message.text)
                 .font(.footnote)
         }
         .padding(10)
         .background(background)
         .clipShape(RoundedRectangle(cornerRadius: 10))
+    }
+
+    @ViewBuilder
+    private func messageTextView(_ text: String) -> some View {
+        if let markdown = try? AttributedString(
+            markdown: text,
+            options: AttributedString.MarkdownParsingOptions(interpretedSyntax: .full)
+        ) {
+            Text(markdown)
+                .tint(.blue)
+        } else {
+            Text(text)
+        }
     }
 
     private func startSessionAndSeedChat() async {
