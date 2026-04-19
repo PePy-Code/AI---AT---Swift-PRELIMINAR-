@@ -15,7 +15,6 @@ public struct HomeView: View {
     @State private var pendingStartActivity: Activity?
     @State private var activeActivity: Activity?
     @State private var editingActivity: Activity?
-    @State private var suppressTapForActivityID: UUID?
     @State private var openWeeklyAgenda = false
     @State private var showQuickAddActivity = false
     private let agendaService = AgendaService(persistence: LocalAgendaDatabase())
@@ -124,7 +123,7 @@ public struct HomeView: View {
                 ActivityEditSheet(
                     agendaService: agendaService,
                     activity: activity,
-                    onDidSave: {
+                    onDidComplete: {
                         Task { await refreshSummary() }
                     }
                 )
@@ -197,29 +196,32 @@ public struct HomeView: View {
     @ViewBuilder
     private func agendaCell(for activity: Activity?) -> some View {
         if let activity {
-            Button {
-                if suppressTapForActivityID == activity.id {
-                    suppressTapForActivityID = nil
-                    return
+            HStack(spacing: 6) {
+                Button {
+                    pendingStartActivity = activity
+                } label: {
+                    HStack(spacing: 6) {
+                        Circle()
+                            .fill(statusColor(for: activity.status))
+                            .frame(width: 8, height: 8)
+                        Text(activity.title)
+                            .lineLimit(1)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .padding(6)
+                    .background(statusColor(for: activity.status).opacity(0.2))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
                 }
-                pendingStartActivity = activity
-            } label: {
-                HStack(spacing: 6) {
-                    Circle()
-                        .fill(statusColor(for: activity.status))
-                        .frame(width: 8, height: 8)
-                    Text(activity.title)
-                        .lineLimit(1)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                .buttonStyle(.plain)
+
+                Button {
+                    editingActivity = activity
+                } label: {
+                    Image(systemName: "pencil")
+                        .font(.caption.weight(.semibold))
+                        .padding(6)
                 }
-                .padding(6)
-                .background(statusColor(for: activity.status).opacity(0.2))
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-            }
-            .buttonStyle(.plain)
-            .onLongPressGesture(minimumDuration: 0.5) {
-                suppressTapForActivityID = activity.id
-                editingActivity = activity
+                .buttonStyle(.borderless)
             }
         } else {
             Button(action: { openWeeklyAgenda = true }) {
@@ -736,22 +738,24 @@ private struct PomodoroTransitionAlert: Identifiable {
 private struct ActivityEditSheet: View {
     let agendaService: AgendaService
     let activity: Activity
-    let onDidSave: () -> Void
+    let onDidComplete: () -> Void
 
     @Environment(\.dismiss) private var dismiss
     @State private var title: String
     @State private var topic: String
     @State private var typeRawValue: String
     @State private var scheduledAt: Date
+    @State private var errorMessage: String?
+    @State private var shouldConfirmDelete = false
 
     init(
         agendaService: AgendaService,
         activity: Activity,
-        onDidSave: @escaping () -> Void
+        onDidComplete: @escaping () -> Void
     ) {
         self.agendaService = agendaService
         self.activity = activity
-        self.onDidSave = onDidSave
+        self.onDidComplete = onDidComplete
         _title = State(initialValue: activity.title)
         _topic = State(initialValue: activity.topic)
         _typeRawValue = State(initialValue: activity.type.rawValue)
@@ -775,6 +779,9 @@ private struct ActivityEditSheet: View {
                     Button("Guardar cambios") {
                         Task { await save() }
                     }
+                    Button("Eliminar actividad", role: .destructive) {
+                        shouldConfirmDelete = true
+                    }
                 }
             }
             .navigationTitle("Editar actividad")
@@ -782,6 +789,24 @@ private struct ActivityEditSheet: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cerrar") { dismiss() }
                 }
+            }
+            .alert("No se pudo completar la acción", isPresented: Binding(
+                get: { errorMessage != nil },
+                set: { newValue in
+                    if !newValue { errorMessage = nil }
+                }
+            )) {
+                Button("OK", role: .cancel) { errorMessage = nil }
+            } message: {
+                Text(errorMessage ?? "")
+            }
+            .alert("Eliminar actividad", isPresented: $shouldConfirmDelete) {
+                Button("Cancelar", role: .cancel) {}
+                Button("Eliminar", role: .destructive) {
+                    Task { await delete() }
+                }
+            } message: {
+                Text("Esta acción no se puede deshacer.")
             }
         }
     }
@@ -793,11 +818,30 @@ private struct ActivityEditSheet: View {
         updated.type = ActivityType(rawValue: typeRawValue) ?? .study
         updated.scheduledAt = scheduledAt
         guard !updated.title.isEmpty, !updated.topic.isEmpty else { return }
-        _ = await agendaService.updateActivity(updated)
+        let didUpdate = await agendaService.updateActivity(updated)
+        guard handleResult(didUpdate, failureMessage: "No se pudo guardar la actividad. Inténtalo de nuevo.") else { return }
+        await completeAndDismiss()
+    }
+
+    private func delete() async {
+        let didDelete = await agendaService.deleteActivity(id: activity.id)
+        guard handleResult(didDelete, failureMessage: "No se pudo eliminar la actividad. Inténtalo de nuevo.") else { return }
+        await completeAndDismiss()
+    }
+
+    private func completeAndDismiss() async {
         await MainActor.run {
-            onDidSave()
+            onDidComplete()
             dismiss()
         }
+    }
+
+    private func handleResult(_ isSuccess: Bool, failureMessage: String) -> Bool {
+        guard isSuccess else {
+            errorMessage = failureMessage
+            return false
+        }
+        return true
     }
 
     private func typeLabel(_ type: ActivityType) -> String {
@@ -929,7 +973,7 @@ private struct WeeklyAgendaView: View {
             ActivityEditSheet(
                 agendaService: agendaService,
                 activity: activity,
-                onDidSave: {
+                onDidComplete: {
                     Task { await loadWeekActivities() }
                 }
             )
