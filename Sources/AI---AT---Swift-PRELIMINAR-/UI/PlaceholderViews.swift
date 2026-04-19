@@ -342,6 +342,11 @@ private struct PersonalChatbotView: View {
     @State private var userInput = ""
     @State private var hasLoaded = false
     private let intelligence = AIConversationService()
+    private static let hourFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        return formatter
+    }()
 
     var body: some View {
         VStack(spacing: 12) {
@@ -490,9 +495,7 @@ private struct PersonalChatbotView: View {
     }
 
     private func hourAndMinute(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm"
-        return formatter.string(from: date)
+        Self.hourFormatter.string(from: date)
     }
 }
 

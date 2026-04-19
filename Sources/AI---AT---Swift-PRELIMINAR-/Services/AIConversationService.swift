@@ -116,6 +116,10 @@ public struct AIConversationService: AIConversationProviding {
 }
 
 private extension AIConversationService {
+    static let openingPhraseRegex: NSRegularExpression? = try? NSRegularExpression(
+        pattern: #"(?i)^\s*(¡?\s*hola!?|claro|por supuesto|entiendo|genial|perfecto|buena pregunta|excelente pregunta)\s*[,!:.-]*\s*"#
+    )
+
     func startSupportPrompt(for context: String) -> String {
         """
         Inicio de actividad de estudio: \(context).
@@ -218,8 +222,7 @@ private extension AIConversationService {
     }
 
     func stripCommonOpeningPhrase(from text: String) -> String {
-        let openingPattern = #"(?i)^\s*(¡?\s*hola!?|claro|por supuesto|entiendo|genial|perfecto|buena pregunta|excelente pregunta)\s*[,!:.-]*\s*"#
-        guard let openingRegex = try? NSRegularExpression(pattern: openingPattern) else {
+        guard let openingRegex = Self.openingPhraseRegex else {
             return text.trimmingCharacters(in: .whitespacesAndNewlines)
         }
         let fullRange = NSRange(text.startIndex..<text.endIndex, in: text)

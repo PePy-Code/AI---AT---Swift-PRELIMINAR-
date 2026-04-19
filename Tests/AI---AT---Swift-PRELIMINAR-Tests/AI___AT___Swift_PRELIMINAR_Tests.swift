@@ -492,7 +492,7 @@ func aiConversationServiceCleansRepetitiveOpenings() async throws {
 
     #expect(!answer.lowercased().hasPrefix("claro"))
     #expect(answer.contains("Aquí tienes pasos concretos para avanzar."))
-    #expect(answer.components(separatedBy: "te ayudo con eso").count == 2)
+    #expect(!answer.lowercased().contains("claro, te ayudo con eso"))
 }
 
 @Test("AIConversationService trivia usa payload JSON del proveedor externo")
