@@ -611,6 +611,7 @@ private struct ActivityLaunchPlaceholderView: View {
     @State private var streakDays = 0
     @State private var navigateToTrainer = false
     @State private var navigateToTrainerAfterStreak = false
+    @State private var didNavigateToTrainerFromActivity = false
     @State private var shouldShowStreakPopup = false
     @State private var isFinishing = false
     @State private var pomodoroTransitionAlert: PomodoroTransitionAlert?
@@ -705,6 +706,7 @@ private struct ActivityLaunchPlaceholderView: View {
                             navigateToTrainerAfterStreak = true
                             finishAlertStep = .streak
                         } else {
+                            didNavigateToTrainerFromActivity = true
                             navigateToTrainer = true
                         }
                     },
@@ -724,6 +726,7 @@ private struct ActivityLaunchPlaceholderView: View {
                     dismissButton: .default(Text("Continuar")) {
                         if navigateToTrainerAfterStreak {
                             navigateToTrainerAfterStreak = false
+                            didNavigateToTrainerFromActivity = true
                             navigateToTrainer = true
                         } else {
                             dismiss()
@@ -734,6 +737,11 @@ private struct ActivityLaunchPlaceholderView: View {
         }
         .navigationDestination(isPresented: $navigateToTrainer) {
             MentalTrainerView()
+        }
+        .onChange(of: navigateToTrainer) { _, isPresented in
+            guard didNavigateToTrainerFromActivity, !isPresented else { return }
+            didNavigateToTrainerFromActivity = false
+            dismiss()
         }
         #if canImport(PhotosUI)
         .onChange(of: selectedPhotoItem) { _, newValue in
@@ -2047,12 +2055,19 @@ public struct MentalTrainerView: View {
         countdownTask?.cancel()
 
         guard let feedback = try? await mentalService.submitAnswer(optionIndex: optionIndex, answeredAt: answerDate) else {
+            let session = await mentalService.activeSession
+            let fallbackScore = session?.attempt.correctAnswers ?? correctAnswers
             await MainActor.run {
                 isLoading = false
-                questionAnswered = false
-                errorMessage = "No se pudo obtener una nueva pregunta en tiempo real."
+                isGameOver = true
                 sessionCompleted = true
+                questionAnswered = true
+                feedbackMessage = "No se pudo continuar la trivia. Fin del intento."
+                feedbackColor = .red
+                questionDeadline = nil
+                remainingSeconds = 0
             }
+            await finalizeLossFlow(score: fallbackScore)
             return
         }
 
@@ -2159,7 +2174,8 @@ public struct MentalTrainerView: View {
     @MainActor
     private func answerTimeoutIfNeeded() async {
         guard hasStarted, !questionAnswered, !sessionCompleted, !isGameOver else { return }
-        await answer(optionIndex: -1, answerDate: Date())
+        let forcedTimeoutDate = questionDeadline?.addingTimeInterval(0.001) ?? Date()
+        await answer(optionIndex: -1, answerDate: forcedTimeoutDate)
     }
 
     private func pauseForAnswerReveal() async -> Bool {
