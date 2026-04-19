@@ -17,7 +17,7 @@ Este repositorio contiene una **librería Swift Package Manager (SPM)** con la l
 ## Configuración de la API de Groq
 
 La integración de Groq está implementada en:
-- `/home/runner/work/AI---AT---Swift-PRELIMINAR-/AI---AT---Swift-PRELIMINAR-/Sources/AI---AT---Swift-PRELIMINAR-/Services/OpenSourceKnowledgeService.swift`
+- `Sources/AI---AT---Swift-PRELIMINAR-/Services/OpenSourceKnowledgeService.swift`
 
 Modelo configurado actualmente:
 - `llama-3.3-70b-versatile`
@@ -36,7 +36,7 @@ export GROQ_API_KEY="tu_api_key"
 ### Opción temporal para desarrollo local
 
 1. Abre este archivo:
-   - `/home/runner/work/AI---AT---Swift-PRELIMINAR-/AI---AT---Swift-PRELIMINAR-/Sources/AI---AT---Swift-PRELIMINAR-/Configuration/LocalSecrets.swift`
+   - `Sources/AI---AT---Swift-PRELIMINAR-/Configuration/LocalSecrets.swift`
 2. Asigna tu key en `LocalSecrets.groqAPIKey`.
 
 ```swift
