@@ -267,7 +267,7 @@ private extension View {
 }
 
 public struct HomeView: View {
-    // Slightly longer than the original 1s to make the branded startup feel intentional.
+    // Keep a short intentional delay so the branded startup screen is visible.
     private static let launchDuration: Duration = .seconds(1.8)
     @State private var isShowingLaunchScreen = true
     @State private var todayActivities: [Activity] = []
@@ -473,7 +473,9 @@ public struct HomeView: View {
             } catch is CancellationError {
                 return
             } catch {
-                assertionFailure("Unexpected non-cancellation error while waiting for launch delay: \(error)")
+                assertionFailure(
+                    "Unexpected non-cancellation error while waiting for launch delay. This indicates a development-time issue: \(error)"
+                )
                 return
             }
             guard !Task.isCancelled else { return }
