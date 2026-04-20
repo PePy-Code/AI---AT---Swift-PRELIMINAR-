@@ -323,8 +323,7 @@ public struct HomeView: View {
                         openPersonalChatbot = true
                     } label: {
                         HStack(alignment: .top, spacing: 10) {
-                            Text("🐹")
-                                .font(.largeTitle)
+                            HamletMiniIcon(size: 34)
                             VStack(alignment: .leading, spacing: 2) {
                                 Text("Hamlet Hamster")
                                     .font(.caption.weight(.semibold))
@@ -738,7 +737,7 @@ public struct HomeView: View {
         if todayActivities.isEmpty {
             return "Sin actividades hoy. Una pequeña tarea marca la diferencia."
         }
-        return "Un bloque a la vez. Cada paso suma 🐹"
+        return "Un bloque a la vez. Cada paso suma."
     }
 
     private func statusColor(for status: ActivityStatus) -> Color {
@@ -830,6 +829,54 @@ private struct AppLaunchLoadingView: View {
     }
 }
 
+private struct HamletMiniIcon: View {
+    private static let primaryImageName = "HamletMini"
+    private static let secondaryImageName = "hamletmini"
+    private static let fallbackImageName = "Hamlet"
+    private static let fallbackSystemIconName = "face.smiling"
+    // Rounded corners tuned to keep a soft avatar look without visibly cutting the mascot face.
+    private static let cornerRadiusRatio: CGFloat = 0.28
+    private static let resolvedIconImage: Image = (
+        loadHamletMiniImage()
+            ?? loadImage(named: fallbackImageName)
+            ?? Image(systemName: fallbackSystemIconName)
+    )
+    let size: CGFloat
+
+    var body: some View {
+        Self.resolvedIconImage
+            .resizable()
+            .scaledToFit()
+            .frame(width: size, height: size)
+            .clipShape(RoundedRectangle(cornerRadius: size * Self.cornerRadiusRatio, style: .continuous))
+            .accessibilityHidden(true)
+    }
+
+    private static func loadHamletMiniImage() -> Image? {
+        loadImage(named: Self.primaryImageName) ?? loadImage(named: Self.secondaryImageName)
+    }
+
+    private static func loadImage(named resourceName: String) -> Image? {
+        #if canImport(UIKit)
+        if let image = UIImage(named: resourceName, in: .module, compatibleWith: nil) {
+            return Image(uiImage: image)
+        }
+        if let image = UIImage(named: resourceName) {
+            return Image(uiImage: image)
+        }
+        #elseif canImport(AppKit)
+        if let image = Bundle.module.image(forResource: NSImage.Name(resourceName)) {
+            return Image(nsImage: image)
+        }
+        if let image = NSImage(named: NSImage.Name(resourceName)) {
+            return Image(nsImage: image)
+        }
+        #endif
+
+        return nil
+    }
+}
+
 private struct PersonalChatbotView: View {
     let todayActivities: [Activity]
     let tomorrowActivities: [Activity]
@@ -848,7 +895,7 @@ private struct PersonalChatbotView: View {
         }
         .padding()
         .background(ScreenPalette.homeBackground.ignoresSafeArea())
-        .navigationTitle("Hamlet Hamster 🐹")
+        .navigationTitle("Hamlet Hamster")
         .task {
             guard !hasLoaded else { return }
             hasLoaded = true
@@ -861,8 +908,11 @@ private struct PersonalChatbotView: View {
 
     private var chatSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Hamlet Hamster 🐹")
-                .font(.headline)
+            HStack(spacing: 8) {
+                HamletMiniIcon(size: 24)
+                Text("Hamlet Hamster")
+                    .font(.headline)
+            }
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 8) {
                     ForEach(messages) { message in
@@ -968,7 +1018,7 @@ private struct PersonalChatbotView: View {
         )) ?? ""
         let cleaned = modelReply.trimmingCharacters(in: .whitespacesAndNewlines)
         if cleaned.isEmpty {
-            return "Cuéntame qué necesitas organizar hoy 🐹"
+            return "Cuéntame qué necesitas organizar hoy."
         }
         return cleaned
     }
@@ -1000,9 +1050,9 @@ private struct PersonalChatbotView: View {
             ? "Llevas una racha de \(streakDays) \(streakDayWord)."
             : "Aún no tienes racha activa."
         if todayActivities.isEmpty && tomorrowActivities.isEmpty {
-            return "Hola, soy Hamlet Hamster 🐹\n\n\(streakText) No tienes actividades programadas.\n\nSi quieres, cuéntame en qué quieres avanzar hoy."
+            return "Hola, soy Hamlet Hamster.\n\n\(streakText) No tienes actividades programadas.\n\nSi quieres, cuéntame en qué quieres avanzar hoy."
         }
-        return "Hola, soy Hamlet Hamster 🐹\n\nHoy tienes \(todayPending) \(activityWord) pendientes y mañana hay \(tomorrowCount) más. \(streakText)\n\n¿En qué te ayudo?"
+        return "Hola, soy Hamlet Hamster.\n\nHoy tienes \(todayPending) \(activityWord) pendientes y mañana hay \(tomorrowCount) más. \(streakText)\n\n¿En qué te ayudo?"
     }
 
     private func pluralizedWord(for count: Int, singular: String, plural: String) -> String {
@@ -1170,7 +1220,7 @@ private struct ActivityLaunchPlaceholderView: View {
                 )
             case .mentalTrainingPrompt:
                 return Alert(
-                    title: Text("🐹 Entrenamiento mental"),
+                    title: Text("Entrenamiento mental"),
                     message: Text("¿Te gustaría hacer un entrenamiento mental?"),
                     primaryButton: .default(Text("Sí")) {
                         if shouldShowStreakPopup {
@@ -1302,8 +1352,11 @@ private struct ActivityLaunchPlaceholderView: View {
 
     private var chatSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Hamlet Hamster 🐹")
-                .font(.headline)
+            HStack(spacing: 8) {
+                HamletMiniIcon(size: 24)
+                Text("Hamlet Hamster")
+                    .font(.headline)
+            }
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 8) {
                     ForEach(messages) { message in
@@ -1425,7 +1478,7 @@ private struct ActivityLaunchPlaceholderView: View {
         )) ?? ""
         let cleaned = modelReply.trimmingCharacters(in: .whitespacesAndNewlines)
         if cleaned.isEmpty {
-            return "Dame más contexto y te respondo de forma concreta 🐹"
+            return "Dame más contexto y te respondo de forma concreta."
         }
         return cleaned
     }
