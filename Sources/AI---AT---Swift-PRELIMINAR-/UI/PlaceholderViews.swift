@@ -465,7 +465,7 @@ public struct HomeView: View {
         .preferredColorScheme(preferredColorScheme)
         .appTypography()
         .environment(\.dynamicTypeSize, preferredDynamicTypeSize)
-        .task(id: showLaunchLoadingScreen) {
+        .task {
             guard showLaunchLoadingScreen else { return }
             do {
                 try await Task.sleep(for: .seconds(1))
@@ -765,7 +765,6 @@ private struct AppLaunchLoadingView: View {
                 en: "Loading screen with hamster"
             )
         )
-        .accessibilityAddTraits(.isStaticText)
     }
 }
 
