@@ -7,6 +7,12 @@ public struct OpenSourceKnowledgeService: OpenSourceKnowledgeProviding {
     private let session: URLSession
     private let groqAPIKey: String?
     private let groqModel: String
+    private enum TokenBudget {
+        static let historyTurns = 6
+        static let maxHistoryTurnCharacters = 320
+        static let maxUserQueryCharacters = 700
+        static let maxOutputTokens = 420
+    }
 
     public init() {
         self.session = OpenSourceKnowledgeService.makeSession()
@@ -94,15 +100,18 @@ public struct OpenSourceKnowledgeService: OpenSourceKnowledgeProviding {
             """
         )
 
-        // Include up to the last 10 turns of conversation history so the model has context.
-        let recentHistory = history.suffix(10).map { turn in
-            GroqChatMessage(role: turn.role.rawValue, content: turn.content)
+        // Include only the most recent turns and trim each one to reduce token usage.
+        let recentHistory = history.suffix(TokenBudget.historyTurns).map { turn in
+            GroqChatMessage(
+                role: turn.role.rawValue,
+                content: truncated(turn.content, maxCharacters: TokenBudget.maxHistoryTurnCharacters)
+            )
         }
 
         let userMessage = GroqChatMessage(
             role: "user",
             content: """
-            Consulta del usuario: \(query)
+            Consulta del usuario: \(truncated(query, maxCharacters: TokenBudget.maxUserQueryCharacters))
 
             Contexto de navegación web recuperado:
             \(evidenceBlock)
@@ -115,7 +124,7 @@ public struct OpenSourceKnowledgeService: OpenSourceKnowledgeProviding {
             model: groqModel,
             messages: [systemMessage] + recentHistory + [userMessage],
             temperature: 0.2,
-            maxTokens: nil
+            maxTokens: TokenBudget.maxOutputTokens
         )
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -291,6 +300,14 @@ public struct OpenSourceKnowledgeService: OpenSourceKnowledgeProviding {
         if hasAnyLink { return response }
         let markdownLinks = links.prefix(3).map { "- [Fuente web](\($0))" }.joined(separator: "\n")
         return response + "\n\nFuentes web:\n" + markdownLinks
+    }
+
+    private func truncated(_ text: String, maxCharacters: Int) -> String {
+        guard maxCharacters > 0 else { return "" }
+        let cleaned = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard cleaned.count > maxCharacters else { return cleaned }
+        let endIndex = cleaned.index(cleaned.startIndex, offsetBy: maxCharacters)
+        return String(cleaned[..<endIndex]).trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
 

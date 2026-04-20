@@ -855,6 +855,75 @@ struct OpenSourceKnowledgeServiceNetworkTests {
         #expect(answer?.contains("fue un científico") == true)
     }
 
+    @Test("OpenSourceKnowledgeService limita historial y salida para controlar consumo de tokens")
+    func openSourceKnowledgeServiceLimitsHistoryAndOutputTokensInGroqPayload() async throws {
+        let session = makeMockedSession()
+        var capturedMaxTokens: Int?
+        var capturedMessagesCount: Int?
+        let stateQueue = DispatchQueue(label: "test.groq.request.token-budget")
+
+        MockURLProtocol.setRequestHandler { request in
+            let url = try #require(request.url)
+            if url.absoluteString.contains("api.groq.com/openai/v1/chat/completions") {
+                if let body = request.httpBody,
+                   let payload = try JSONSerialization.jsonObject(with: body) as? [String: Any] {
+                    let maxTokens = payload["max_tokens"] as? Int
+                    let messages = payload["messages"] as? [[String: Any]]
+                    stateQueue.sync {
+                        capturedMaxTokens = maxTokens
+                        capturedMessagesCount = messages?.count
+                    }
+                }
+                let groqPayload: [String: Any] = [
+                    "choices": [
+                        [
+                            "message": [
+                                "role": "assistant",
+                                "content": "Respuesta de prueba."
+                            ]
+                        ]
+                    ]
+                ]
+                return (200, try JSONSerialization.data(withJSONObject: groqPayload))
+            }
+
+            if url.absoluteString.contains("api.duckduckgo.com") {
+                let fallbackPayload: [String: Any] = [
+                    "AbstractText": "Resumen breve.",
+                    "AbstractURL": "https://es.wikipedia.org/wiki/Albert_Einstein",
+                    "RelatedTopics": []
+                ]
+                return (200, try JSONSerialization.data(withJSONObject: fallbackPayload))
+            }
+
+            if url.absoluteString.contains("es.wikipedia.org/w/api.php") {
+                let payload: [Any] = [
+                    "consulta",
+                    ["Título"],
+                    ["Extracto"],
+                    ["https://es.wikipedia.org/wiki/Albert_Einstein"]
+                ]
+                return (200, try JSONSerialization.data(withJSONObject: payload))
+            }
+
+            throw URLError(.badURL)
+        }
+        defer { MockURLProtocol.setRequestHandler(nil) }
+
+        let history = (0..<9).map { index in
+            ConversationTurn(
+                role: index.isMultiple(of: 2) ? .user : .assistant,
+                content: "Mensaje \(index): " + String(repeating: "detalle ", count: 80)
+            )
+        }
+        let service = OpenSourceKnowledgeService(session: session, groqAPIKey: "test-key")
+        _ = await service.answer(for: "Explica relatividad de forma breve.", history: history)
+
+        let (maxTokens, messagesCount) = stateQueue.sync { (capturedMaxTokens, capturedMessagesCount) }
+        #expect(maxTokens == 420)
+        #expect(messagesCount == 8)
+    }
+
     @Test("OpenSourceKnowledgeService agrega hipervínculos cuando Groq no los devuelve")
     func openSourceKnowledgeServiceAddsHyperlinksToGroqReplyWhenMissing() async throws {
         let session = makeMockedSession()
