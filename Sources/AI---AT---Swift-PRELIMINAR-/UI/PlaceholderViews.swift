@@ -85,6 +85,7 @@ private extension Color {
 private enum ScreenPalette {
     private static let neonMagenta = Color(hex: 0xFF00FF)
     private static let neonPurple = Color(hex: 0x7B2CFF)
+    private static let fixedScreenBackground = Color(hex: 0x7B2CFF)
     private static let mintGreen = Color(hex: 0x3DE5C3)
     private static let mexicanPink = Color(hex: 0xE4007C)
     private static let pumpkinOrange = Color(hex: 0xFF7518)
@@ -95,43 +96,23 @@ private enum ScreenPalette {
         endPoint: .bottomTrailing
     )
 
-    static let homeBackground = LinearGradient(
-        colors: [mintGreen.opacity(0.24), mexicanPink.opacity(0.22)],
-        startPoint: .topLeading,
-        endPoint: .bottomTrailing
-    )
+    static let homeBackground = fixedScreenBackground
     static let homeSurface = neonSurface
     static let homeBubbleAssistant = pumpkinOrange.opacity(0.24)
     static let homeBubbleUser = mexicanPink.opacity(0.20)
 
-    static let activityBackground = LinearGradient(
-        colors: [pumpkinOrange.opacity(0.22), mintGreen.opacity(0.22), mexicanPink.opacity(0.20)],
-        startPoint: .topLeading,
-        endPoint: .bottomTrailing
-    )
+    static let activityBackground = fixedScreenBackground
     static let activitySurface = neonSurface
     static let activityBubbleAssistant = mintGreen.opacity(0.30)
     static let activityBubbleUser = mexicanPink.opacity(0.24)
 
-    static let agendaBackground = LinearGradient(
-        colors: [mintGreen.opacity(0.20), pastelPink.opacity(0.24), pumpkinOrange.opacity(0.18)],
-        startPoint: .topLeading,
-        endPoint: .bottomTrailing
-    )
+    static let agendaBackground = fixedScreenBackground
     static let agendaSurface = neonSurface
 
-    static let trainerBackground = LinearGradient(
-        colors: [mexicanPink.opacity(0.22), pumpkinOrange.opacity(0.20), mintGreen.opacity(0.18)],
-        startPoint: .topLeading,
-        endPoint: .bottomTrailing
-    )
+    static let trainerBackground = fixedScreenBackground
     static let trainerSurface = neonSurface
 
-    static let settingsBackground = LinearGradient(
-        colors: [pastelPink.opacity(0.26), mintGreen.opacity(0.18), mexicanPink.opacity(0.18), pumpkinOrange.opacity(0.18)],
-        startPoint: .topLeading,
-        endPoint: .bottomTrailing
-    )
+    static let settingsBackground = fixedScreenBackground
 }
 
 public struct HomeView: View {
