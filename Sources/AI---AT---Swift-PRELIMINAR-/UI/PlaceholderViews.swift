@@ -139,10 +139,21 @@ private enum ScreenPalette {
     static let homeBubbleAssistant = pumpkinOrange.opacity(0.24)
     static let homeBubbleUser = mexicanPink.opacity(0.20)
 
-    static let activityBackground = neonBackground
-    static let activitySurface = neonSurface
+    static let activityBackground = LinearGradient(
+        colors: [neonPurple, mexicanPink.opacity(0.84), pumpkinOrange.opacity(0.72)],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+    static let activitySurface = LinearGradient(
+        colors: [pastelPink.opacity(0.34), mintGreen.opacity(0.30), pumpkinOrange.opacity(0.24)],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
     static let activityBubbleAssistant = mintGreen.opacity(0.30)
     static let activityBubbleUser = mexicanPink.opacity(0.24)
+    static let buttonPrimary = pumpkinOrange
+    static let buttonSecondary = mexicanPink
+    static let buttonTertiary = mintGreen
 
     static let agendaBackground = neonBackground
     static let agendaSurface = neonSurface
@@ -862,32 +873,40 @@ private struct ActivityLaunchPlaceholderView: View {
     #endif
 
     var body: some View {
-        VStack(spacing: 12) {
-            HStack(spacing: 10) {
-                Button("Finalizar") {
-                    finishAlertStep = .confirmFinish
-                }
-                .buttonStyle(.borderedProminent)
+        ZStack {
+            ScreenPalette.activityBackground.ignoresSafeArea()
 
-                Button("Pendiente") {
-                    Task { await markPendingAndExit() }
+            ScrollView {
+                VStack(spacing: 12) {
+                    HStack(spacing: 10) {
+                        Button("Finalizar") {
+                            finishAlertStep = .confirmFinish
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(ScreenPalette.buttonPrimary)
+
+                        Button("Pendiente") {
+                            Task { await markPendingAndExit() }
+                        }
+                        .buttonStyle(.bordered)
+                        .tint(ScreenPalette.buttonSecondary)
+                    }
+
+                    pomodoroCard
+                        .alert(item: $pomodoroTransitionAlert) { alert in
+                            Alert(
+                                title: Text("Pomodoro"),
+                                message: Text(alert.message),
+                                dismissButton: .default(Text("OK"))
+                            )
+                        }
+                    chatSection
+                    chatComposer
                 }
-                .buttonStyle(.bordered)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding()
             }
-
-            pomodoroCard
-                .alert(item: $pomodoroTransitionAlert) { alert in
-                    Alert(
-                        title: Text("Pomodoro"),
-                        message: Text(alert.message),
-                        dismissButton: .default(Text("OK"))
-                    )
-                }
-            chatSection
-            chatComposer
         }
-        .padding()
-        .background(ScreenPalette.activityBackground.ignoresSafeArea())
         .navigationTitle("Iniciar actividad")
         .navigationBarBackButtonHidden(true)
         .task {
@@ -1041,6 +1060,7 @@ private struct ActivityLaunchPlaceholderView: View {
                     isRunning.toggle()
                 }
                 .buttonStyle(.bordered)
+                .tint(ScreenPalette.buttonPrimary)
 
                 Button("Reiniciar") {
                     isRunning = false
@@ -1051,6 +1071,7 @@ private struct ActivityLaunchPlaceholderView: View {
                     wellbeingMessage = nil
                 }
                 .buttonStyle(.bordered)
+                .tint(ScreenPalette.buttonSecondary)
 
                 #if DEBUG
                 Button("DEBUG 10 s") {
@@ -1099,6 +1120,7 @@ private struct ActivityLaunchPlaceholderView: View {
                     Image(systemName: "plus.viewfinder")
                 }
                 .buttonStyle(.bordered)
+                .tint(ScreenPalette.buttonTertiary)
                 #else
                 Button {
                     Task { await addSimulatedImageAttachment() }
@@ -1106,6 +1128,7 @@ private struct ActivityLaunchPlaceholderView: View {
                     Image(systemName: "plus.viewfinder")
                 }
                 .buttonStyle(.bordered)
+                .tint(ScreenPalette.buttonTertiary)
                 #endif
 
                 TextField("Escribe a Roedor...", text: $userInput, axis: .vertical)
@@ -1115,6 +1138,7 @@ private struct ActivityLaunchPlaceholderView: View {
                     Task { await sendUserMessage() }
                 }
                 .buttonStyle(.borderedProminent)
+                .tint(ScreenPalette.buttonPrimary)
                 .disabled(userInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
             Text("Roedor responde preguntas, explica conceptos y sugiere fuentes abiertas.")
@@ -2316,6 +2340,7 @@ public struct MentalTrainerView: View {
                             Task { await startSession() }
                         }
                         .buttonStyle(.borderedProminent)
+                        .tint(ScreenPalette.buttonPrimary)
                         .disabled(isLoading)
                     } else {
                         HStack {
@@ -2361,6 +2386,7 @@ public struct MentalTrainerView: View {
                                         }
                                     }
                                     .buttonStyle(.bordered)
+                                    .tint(ScreenPalette.buttonSecondary)
                                     .disabled(questionAnswered || sessionCompleted || isLoading)
                                 }
                             }
@@ -2384,6 +2410,7 @@ public struct MentalTrainerView: View {
                                 Task { await startSession() }
                             }
                             .buttonStyle(.borderedProminent)
+                            .tint(ScreenPalette.buttonPrimary)
                             .disabled(isLoading)
 
                             if sessionCompleted || isGameOver {
