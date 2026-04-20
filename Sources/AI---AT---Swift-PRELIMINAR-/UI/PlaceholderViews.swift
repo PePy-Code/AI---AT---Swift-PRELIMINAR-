@@ -837,14 +837,17 @@ private struct HamletMiniIcon: View {
     private static let fallbackSystemIconName = "face.smiling"
     // Rounded corners tuned to keep a soft avatar look without visibly cutting the mascot face.
     private static let cornerRadiusRatio: CGFloat = 0.28
+    private static let resolvedIconImage: Image = (
+        loadHamletMiniImage()
+            ?? loadImage(named: fallbackImageName)
+            ?? Image(systemName: fallbackSystemIconName)
+    )
     let size: CGFloat
     private let iconImage: Image
 
     init(size: CGFloat) {
         self.size = size
-        self.iconImage = Self.loadHamletMiniImage()
-            ?? Self.loadImage(named: Self.fallbackImageName)
-            ?? Image(systemName: Self.fallbackSystemIconName)
+        self.iconImage = Self.resolvedIconImage
     }
 
     var body: some View {
