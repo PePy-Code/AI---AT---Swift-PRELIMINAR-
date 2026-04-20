@@ -160,7 +160,7 @@ private enum ScreenPalette {
     )
     static let activityBubbleAssistant = frappeLavender.opacity(0.26)
     static let activityBubbleUser = frappeMauve.opacity(0.24)
-    static let buttonPrimary = frappePink
+    static let buttonPrimary = frappeLavender
     static let buttonSecondary = frappeLavender
     static let buttonTertiary = frappePink
 
