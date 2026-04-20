@@ -160,7 +160,7 @@ private enum ScreenPalette {
     )
     static let activityBubbleAssistant = frappeLavender.opacity(0.26)
     static let activityBubbleUser = frappeMauve.opacity(0.24)
-    static let buttonPrimary = frappeMauve
+    static let buttonPrimary = frappePink
     static let buttonSecondary = frappeLavender
     static let buttonTertiary = frappePink
 
@@ -188,6 +188,7 @@ private enum AppTypography {
 private extension View {
     func appTypography() -> some View {
         environment(\.font, AppTypography.baseFont)
+            .tint(ScreenPalette.buttonPrimary)
     }
 }
 
@@ -1538,6 +1539,7 @@ private struct ActivityEditSheet: View {
                 Text("Esta acción no se puede deshacer.")
             }
         }
+        .tint(ScreenPalette.buttonPrimary)
     }
 
     private func save() async {
@@ -1710,6 +1712,7 @@ private struct WeeklyAgendaView: View {
         }
         .padding()
         .background(ScreenPalette.agendaBackground.ignoresSafeArea())
+        .tint(ScreenPalette.buttonPrimary)
         .navigationTitle("Agenda semanal")
         .task {
             await loadWeekActivities()
@@ -1920,6 +1923,7 @@ private struct AddActivitySheet: View {
                 }
             }
         }
+        .tint(ScreenPalette.buttonPrimary)
     }
 
     private func add() async {
@@ -3005,6 +3009,7 @@ private struct AppSettingsView: View {
         .scrollContentBackground(.hidden)
         .background(ScreenPalette.settingsBackground.ignoresSafeArea())
         .navigationTitle("Ajustes")
+        .tint(ScreenPalette.buttonPrimary)
     }
 
     private func generateBackupPayload() async {
