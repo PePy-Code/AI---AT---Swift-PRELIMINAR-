@@ -102,37 +102,37 @@ private enum ScreenPalette {
     private static let frappeMantle = Color(hex: 0x292C3C)
     private static let frappeCrust = Color(hex: 0x232634)
     private static let frappeBackground = LinearGradient(
-        colors: [frappeCrust, frappeMantle, frappeBase],
+        colors: [frappeCrust, frappeBase, frappeMauve.opacity(0.22)],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
     )
     private static let frappeSurface = LinearGradient(
-        colors: [frappeSurface0.opacity(0.86), frappeSurface1.opacity(0.62)],
+        colors: [frappeSurface0.opacity(0.84), frappeMauve.opacity(0.26), frappeSurface1.opacity(0.72)],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
     )
     private static let frappeWarmSurface = LinearGradient(
-        colors: [frappePeach.opacity(0.34), frappeRosewater.opacity(0.22)],
+        colors: [frappeMauve.opacity(0.36), frappePink.opacity(0.24)],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
     )
     private static let frappeSoftSurface = LinearGradient(
-        colors: [frappeMauve.opacity(0.30), frappeBlue.opacity(0.26)],
+        colors: [frappeLavender.opacity(0.34), frappeMauve.opacity(0.30)],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
     )
     private static let frappeAgendaSurface = LinearGradient(
-        colors: [frappeTeal.opacity(0.24), frappeSky.opacity(0.20), frappeBlue.opacity(0.18)],
+        colors: [frappeMauve.opacity(0.28), frappeLavender.opacity(0.22), frappeBlue.opacity(0.16)],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
     )
     private static let frappeTrainerBackground = LinearGradient(
-        colors: [frappeMantle, frappeBase, frappeSurface0],
+        colors: [frappeMantle, frappeBase, frappeMauve.opacity(0.22)],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
     )
     private static let frappeTrainerSurface = LinearGradient(
-        colors: [frappeBlue.opacity(0.22), frappeMauve.opacity(0.24), frappeTeal.opacity(0.18)],
+        colors: [frappeLavender.opacity(0.28), frappeMauve.opacity(0.26), frappePink.opacity(0.18)],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
     )
@@ -148,7 +148,7 @@ private enum ScreenPalette {
     )
     static let homeAgendaSurface = frappeAgendaSurface
     static let agendaFrameStroke = frappeSurface2.opacity(0.55)
-    static let homeBubbleAssistant = frappeTeal.opacity(0.24)
+    static let homeBubbleAssistant = frappeLavender.opacity(0.24)
     static let homeBubbleUser = frappeMauve.opacity(0.22)
 
     static let activityBackground = homeBackground
@@ -158,11 +158,11 @@ private enum ScreenPalette {
         startPoint: .topLeading,
         endPoint: .bottomTrailing
     )
-    static let activityBubbleAssistant = frappeTeal.opacity(0.26)
+    static let activityBubbleAssistant = frappeLavender.opacity(0.26)
     static let activityBubbleUser = frappeMauve.opacity(0.24)
-    static let buttonPrimary = frappeBlue
-    static let buttonSecondary = frappePeach
-    static let buttonTertiary = frappeMauve
+    static let buttonPrimary = frappeMauve
+    static let buttonSecondary = frappeLavender
+    static let buttonTertiary = frappePink
 
     static let agendaBackground = frappeBackground
     static let agendaSurface = frappeSurface
@@ -172,12 +172,12 @@ private enum ScreenPalette {
 
     static let settingsBackground = frappeBackground
 
-    static let accentInfo = frappeBlue
+    static let accentInfo = frappeMauve
     static let accentSuccess = frappeGreen
     static let accentWarning = frappeYellow
     static let accentDanger = frappeRed
-    static let accentFocus = frappePeach
-    static let accentLink = frappeText
+    static let accentFocus = frappeLavender
+    static let accentLink = frappeLavender
     static let accentMuted = frappeSurface2.opacity(0.85)
 }
 
