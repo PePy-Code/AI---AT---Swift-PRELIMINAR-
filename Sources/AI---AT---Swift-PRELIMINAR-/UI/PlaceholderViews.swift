@@ -469,7 +469,7 @@ public struct HomeView: View {
             guard showLaunchLoadingScreen else { return }
             do {
                 try await Task.sleep(for: .seconds(1))
-            } catch is CancellationError {
+            } catch {
                 return
             }
             withAnimation(.easeOut(duration: 0.2)) {
@@ -760,8 +760,8 @@ private struct AppLaunchLoadingView: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(
             localizedText(
-                es: "Pantalla de carga",
-                en: "Loading screen"
+                es: "Cargando aplicación, espera un momento",
+                en: "Application loading, please wait"
             )
         )
     }
