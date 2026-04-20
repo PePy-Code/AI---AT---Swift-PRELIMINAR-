@@ -466,8 +466,12 @@ public struct HomeView: View {
         .appTypography()
         .environment(\.dynamicTypeSize, preferredDynamicTypeSize)
         .task {
+            do {
+                try await Task.sleep(for: .seconds(1))
+            } catch {
+                return
+            }
             guard showLaunchLoadingScreen else { return }
-            try? await Task.sleep(for: .seconds(1))
             withAnimation(.easeOut(duration: 0.2)) {
                 showLaunchLoadingScreen = false
             }
