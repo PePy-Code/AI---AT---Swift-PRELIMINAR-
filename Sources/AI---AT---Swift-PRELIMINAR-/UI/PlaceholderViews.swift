@@ -833,7 +833,6 @@ private struct HamletMiniIcon: View {
     private static let primaryImageName = "HamletMini"
     private static let secondaryImageName = "hamletmini"
     private static let fallbackImageName = "Hamlet"
-    private static let imageExtension = "png"
     private static let fallbackSystemIconName = "face.smiling"
     // Rounded corners tuned to keep a soft avatar look without visibly cutting the mascot face.
     private static let cornerRadiusRatio: CGFloat = 0.28
@@ -864,16 +863,7 @@ private struct HamletMiniIcon: View {
     }
 
     private static func loadImage(named resourceName: String) -> Image? {
-        let resourceURL = Bundle.module.url(forResource: resourceName, withExtension: Self.imageExtension)
-
         #if canImport(UIKit)
-        if
-            let resourceURL,
-            let imageData = try? Data(contentsOf: resourceURL),
-            let image = UIImage(data: imageData)
-        {
-            return Image(uiImage: image)
-        }
         if let image = UIImage(named: resourceName, in: .module, compatibleWith: nil) {
             return Image(uiImage: image)
         }
@@ -881,13 +871,6 @@ private struct HamletMiniIcon: View {
             return Image(uiImage: image)
         }
         #elseif canImport(AppKit)
-        if
-            let resourceURL,
-            let imageData = try? Data(contentsOf: resourceURL),
-            let image = NSImage(data: imageData)
-        {
-            return Image(nsImage: image)
-        }
         if let image = Bundle.module.image(forResource: NSImage.Name(resourceName)) {
             return Image(nsImage: image)
         }
