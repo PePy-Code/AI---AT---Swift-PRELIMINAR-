@@ -862,7 +862,7 @@ struct OpenSourceKnowledgeServiceNetworkTests {
         var capturedMaxTokens: Int?
         var capturedMessagesCount: Int?
         var capturedHistoryMessageLength: Int?
-        let stateQueue = DispatchQueue(label: "test.groq.request.tokenBudget")
+        let stateQueue = DispatchQueue(label: "test.groq.request.tokenBudget.historyAndOutput")
 
         MockURLProtocol.setRequestHandler { request in
             let url = try #require(request.url)
@@ -936,7 +936,7 @@ struct OpenSourceKnowledgeServiceNetworkTests {
         let oversizedUserQueryRepeatCount = 90 // Fuerza consulta > 700 chars para validar truncado.
         let session = makeMockedSession()
         var capturedUserMessage: String?
-        let stateQueue = DispatchQueue(label: "test.groq.request.userQueryBudget")
+        let stateQueue = DispatchQueue(label: "test.groq.request.tokenBudget.userQuery")
 
         MockURLProtocol.setRequestHandler { request in
             let url = try #require(request.url)

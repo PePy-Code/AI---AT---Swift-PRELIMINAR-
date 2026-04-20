@@ -112,10 +112,11 @@ public struct OpenSourceKnowledgeService: OpenSourceKnowledgeProviding {
             )
         }
 
+        let cleanedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
         let userMessage = GroqChatMessage(
             role: "user",
             content: """
-            Consulta del usuario: \(truncated(query, maxCharacters: TokenBudget.maxUserQueryCharacters))
+            Consulta del usuario: \(truncated(cleanedQuery, maxCharacters: TokenBudget.maxUserQueryCharacters))
 
             Contexto de navegación web recuperado:
             \(evidenceBlock)
