@@ -760,11 +760,12 @@ public struct HomeView: View {
 private struct AppLaunchLoadingView: View {
     private static let hamletImageName = "Hamlet"
     private static let hamletImageExtension = "png"
+    private static let fallbackIconName = "photo"
     private static let imageSize: CGFloat = 220
     private let launchImage: Image
 
     init() {
-        self.launchImage = Self.loadHamletImage() ?? Image(systemName: "photo")
+        self.launchImage = Self.loadHamletImage() ?? Image(systemName: Self.fallbackIconName)
     }
 
     var body: some View {
