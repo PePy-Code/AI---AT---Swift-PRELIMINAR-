@@ -459,8 +459,8 @@ func appPreferencesQuietHoursAcrossMidnight() async throws {
     #expect(AppPreferences.isWithinQuietHours(date: dayDate, calendar: calendar) == false)
 }
 
-@Test("Recurso Hamlet de pantalla de inicio existe en el bundle del paquete")
-func launchHamletImageResourceExistsInBundle() async throws {
+@Test("Launch screen Hamlet resource exists in package bundle")
+func launchScreenHamletResourceExistsInBundle() async throws {
     let resourceURL = Bundle.module.url(forResource: "Hamlet", withExtension: "png")
     #expect(resourceURL != nil)
 }
