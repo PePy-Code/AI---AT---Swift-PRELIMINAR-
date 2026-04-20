@@ -110,6 +110,39 @@ swift test
 4. Agrega el producto `AI---AT---Swift-PRELIMINAR-` al target de la app.
 5. Importa el módulo `AI___AT___Swift_PRELIMINAR_` en tu app.
 
+## App icon (implementado desde UIDesignConcept)
+
+- Fuente original: `UIDesignConcept/hamlet.jpg`
+- Set listo para Xcode: `UIDesignConcept/AppIcon.appiconset`
+
+Para aplicarlo en tu app iOS:
+1. Abre `Assets.xcassets` de tu proyecto de app.
+2. Reemplaza el contenido de `AppIcon` con los archivos de `UIDesignConcept/AppIcon.appiconset`.
+3. Asegúrate de conservar `Contents.json` del set.
+
+También puedes instalarlo automáticamente con script:
+
+```bash
+./Scripts/install_app_icon.sh /ruta/a/TuApp/Assets.xcassets
+```
+
+Para que se vea en simulador:
+- El target de la app debe tener `AppIcon` como nombre de app icon.
+- Si no se actualiza, elimina la app del simulador y vuelve a ejecutar.
+
+## UI Concept Art (paletas aplicadas)
+
+La carpeta `UIDesignConceptArt/` se usa como referencia visual para aplicar paletas de color por pantalla:
+- Menú principal / chat
+- Pantalla de actividad / Pomodoro
+- Agenda
+- Entrenador
+- Ajustes
+
+Nota:
+- El arte conceptual se conserva como referencia de diseño.
+- La UI del paquete aplica tema por color (no renderiza banners de imagen en runtime).
+
 ## Seguridad
 
 - Nunca hardcodees claves reales en commits.

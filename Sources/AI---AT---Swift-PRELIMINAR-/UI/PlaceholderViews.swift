@@ -70,6 +70,202 @@ private func appLocale() -> Locale {
     Locale(identifier: AppPreferences.localeIdentifier)
 }
 
+private extension Color {
+    init(hex: Int, opacity: Double = 1.0) {
+        self.init(
+            .sRGB,
+            red: Double((hex >> 16) & 0xFF) / 255.0,
+            green: Double((hex >> 8) & 0xFF) / 255.0,
+            blue: Double(hex & 0xFF) / 255.0,
+            opacity: opacity
+        )
+    }
+}
+
+private enum ScreenPalette {
+    private enum PaletteVariant {
+        case frappe
+        case latte
+    }
+
+    private static var variant: PaletteVariant {
+        AppPreferences.visualTheme == .light ? .latte : .frappe
+    }
+
+    private static let frappeRosewater = Color(hex: 0xF2D5CF)
+    private static let frappePink = Color(hex: 0xF4B8E4)
+    private static let frappeMauve = Color(hex: 0xCA9EE6)
+    private static let frappeRed = Color(hex: 0xE78284)
+    private static let frappePeach = Color(hex: 0xEF9F76)
+    private static let frappeYellow = Color(hex: 0xE5C890)
+    private static let frappeGreen = Color(hex: 0xA6D189)
+    private static let frappeTeal = Color(hex: 0x81C8BE)
+    private static let frappeSky = Color(hex: 0x99D1DB)
+    private static let frappeBlue = Color(hex: 0x8CAAEE)
+    private static let frappeLavender = Color(hex: 0xBABBF1)
+    private static let frappeText = Color(hex: 0xC6D0F5)
+    private static let frappeSurface2 = Color(hex: 0x626880)
+    private static let frappeSurface1 = Color(hex: 0x51576D)
+    private static let frappeSurface0 = Color(hex: 0x414559)
+    private static let frappeBase = Color(hex: 0x303446)
+    private static let frappeMantle = Color(hex: 0x292C3C)
+    private static let frappeCrust = Color(hex: 0x232634)
+    private static let latteRosewater = Color(hex: 0xDC8A78)
+    private static let lattePink = Color(hex: 0xEA76CB)
+    private static let latteMauve = Color(hex: 0x8839EF)
+    private static let latteRed = Color(hex: 0xD20F39)
+    private static let lattePeach = Color(hex: 0xFE640B)
+    private static let latteYellow = Color(hex: 0xDF8E1D)
+    private static let latteGreen = Color(hex: 0x40A02B)
+    private static let latteTeal = Color(hex: 0x179299)
+    private static let latteSky = Color(hex: 0x04A5E5)
+    private static let latteBlue = Color(hex: 0x1E66F5)
+    private static let latteLavender = Color(hex: 0x7287FD)
+    private static let latteText = Color(hex: 0x4C4F69)
+    private static let latteSurface2 = Color(hex: 0xACB0BE)
+    private static let latteSurface1 = Color(hex: 0xBCC0CC)
+    private static let latteSurface0 = Color(hex: 0xCCD0DA)
+    private static let latteBase = Color(hex: 0xEFF1F5)
+    private static let latteMantle = Color(hex: 0xE6E9EF)
+    private static let latteCrust = Color(hex: 0xDCE0E8)
+    private static let frappeBackground = LinearGradient(
+        colors: [frappeCrust, frappeBase, frappeMauve.opacity(0.22)],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+    private static let frappeSurface = LinearGradient(
+        colors: [frappeSurface0.opacity(0.84), frappeMauve.opacity(0.26), frappeSurface1.opacity(0.72)],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+    private static let frappeWarmSurface = LinearGradient(
+        colors: [frappeMauve.opacity(0.36), frappePink.opacity(0.24)],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+    private static let frappeSoftSurface = LinearGradient(
+        colors: [frappeLavender.opacity(0.34), frappeMauve.opacity(0.30)],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+    private static let frappeAgendaSurface = LinearGradient(
+        colors: [frappeMauve.opacity(0.28), frappeLavender.opacity(0.22), frappeBlue.opacity(0.16)],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+    private static let frappeTrainerBackground = LinearGradient(
+        colors: [frappeMantle, frappeBase, frappeMauve.opacity(0.22)],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+    private static let frappeTrainerSurface = LinearGradient(
+        colors: [frappeLavender.opacity(0.28), frappeMauve.opacity(0.26), frappePink.opacity(0.18)],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+    private static let latteBackground = LinearGradient(
+        colors: [latteCrust, latteBase, latteLavender.opacity(0.20)],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+    private static let latteSurface = LinearGradient(
+        colors: [latteBase.opacity(0.95), latteSurface0.opacity(0.70), latteLavender.opacity(0.20)],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+    private static let latteWarmSurface = LinearGradient(
+        colors: [lattePeach.opacity(0.25), latteRosewater.opacity(0.23)],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+    private static let latteSoftSurface = LinearGradient(
+        colors: [latteLavender.opacity(0.22), latteMauve.opacity(0.16)],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+    private static let latteAgendaSurface = LinearGradient(
+        colors: [latteSky.opacity(0.17), latteBlue.opacity(0.14), latteLavender.opacity(0.18)],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+    private static let latteTrainerBackground = LinearGradient(
+        colors: [latteMantle, latteBase, latteMauve.opacity(0.13)],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+    private static let latteTrainerSurface = LinearGradient(
+        colors: [latteLavender.opacity(0.20), latteBlue.opacity(0.12), lattePink.opacity(0.12)],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+    private static let frappeHomeMascotSurface = LinearGradient(
+        colors: [frappeLavender.opacity(0.30), frappePink.opacity(0.20)],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+    private static let latteHomeMascotSurface = LinearGradient(
+        colors: [latteLavender.opacity(0.20), lattePink.opacity(0.12)],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+    private static let frappePomodoroSurface = LinearGradient(
+        colors: [frappeMantle, frappeSurface0],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+    private static let lattePomodoroSurface = LinearGradient(
+        colors: [latteMantle, latteSurface0],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+
+    static var homeBackground: LinearGradient { variant == .latte ? latteBackground : frappeBackground }
+    static var homeSurface: LinearGradient { variant == .latte ? latteSurface : frappeSurface }
+    static var homeStreakSurface: LinearGradient { variant == .latte ? latteWarmSurface : frappeWarmSurface }
+    static var homeGoalSurface: LinearGradient { variant == .latte ? latteSoftSurface : frappeSoftSurface }
+    static var homeMascotSurface: LinearGradient { variant == .latte ? latteHomeMascotSurface : frappeHomeMascotSurface }
+    static var homeAgendaSurface: LinearGradient { variant == .latte ? latteAgendaSurface : frappeAgendaSurface }
+    static var agendaFrameStroke: Color { variant == .latte ? latteSurface2.opacity(0.65) : frappeSurface2.opacity(0.55) }
+    static var homeBubbleAssistant: Color { variant == .latte ? latteLavender.opacity(0.18) : frappeLavender.opacity(0.24) }
+    static var homeBubbleUser: Color { variant == .latte ? latteMauve.opacity(0.14) : frappeMauve.opacity(0.22) }
+
+    static var activityBackground: LinearGradient { homeBackground }
+    static var activitySurface: LinearGradient { homeSurface }
+    static var pomodoroSurface: LinearGradient { variant == .latte ? lattePomodoroSurface : frappePomodoroSurface }
+    static var activityBubbleAssistant: Color { variant == .latte ? latteLavender.opacity(0.18) : frappeLavender.opacity(0.26) }
+    static var activityBubbleUser: Color { variant == .latte ? latteMauve.opacity(0.14) : frappeMauve.opacity(0.24) }
+    static var buttonPrimary: Color { variant == .latte ? latteLavender : frappeLavender }
+    static var buttonSecondary: Color { variant == .latte ? latteBlue : frappeLavender }
+    static var buttonTertiary: Color { variant == .latte ? lattePink : frappePink }
+
+    static var agendaBackground: LinearGradient { homeBackground }
+    static var agendaSurface: LinearGradient { homeSurface }
+
+    static var trainerBackground: LinearGradient { variant == .latte ? latteTrainerBackground : frappeTrainerBackground }
+    static var trainerSurface: LinearGradient { variant == .latte ? latteTrainerSurface : frappeTrainerSurface }
+
+    static var settingsBackground: LinearGradient { homeBackground }
+
+    static var accentInfo: Color { variant == .latte ? latteBlue : frappeMauve }
+    static var accentSuccess: Color { variant == .latte ? latteGreen : frappeGreen }
+    static var accentWarning: Color { variant == .latte ? latteYellow : frappeYellow }
+    static var accentDanger: Color { variant == .latte ? latteRed : frappeRed }
+    static var accentFocus: Color { variant == .latte ? latteLavender : frappeLavender }
+    static var accentLink: Color { variant == .latte ? latteBlue : frappeLavender }
+    static var accentMuted: Color { variant == .latte ? latteText.opacity(0.70) : frappeSurface2.opacity(0.85) }
+}
+
+private enum AppTypography {
+    static let baseFont = Font.custom("JK Gothic M", size: 16)
+}
+
+private extension View {
+    func appTypography() -> some View {
+        environment(\.font, AppTypography.baseFont)
+            .tint(ScreenPalette.buttonPrimary)
+    }
+}
+
 public struct HomeView: View {
     @State private var todayActivities: [Activity] = []
     @State private var tomorrowActivities: [Activity] = []
@@ -110,8 +306,12 @@ public struct HomeView: View {
                         .buttonStyle(.borderedProminent)
                     }
                     .padding()
-                    .background(Color(.secondarySystemBackground))
+                    .background(ScreenPalette.homeStreakSurface)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(ScreenPalette.agendaFrameStroke, lineWidth: 1)
+                    )
 
                     dailyGoalsCard
 
@@ -132,11 +332,11 @@ public struct HomeView: View {
                             }
                         }
                         .padding()
-                        .background(.white)
+                        .background(ScreenPalette.homeMascotSurface)
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                         .overlay(
                             RoundedRectangle(cornerRadius: 12)
-                                .stroke(Color(.separator), lineWidth: 1)
+                                .stroke(ScreenPalette.agendaFrameStroke, lineWidth: 1)
                         )
                     }
                     .buttonStyle(.plain)
@@ -165,6 +365,7 @@ public struct HomeView: View {
                 }
                 .padding()
             }
+            .background(ScreenPalette.homeBackground.ignoresSafeArea())
             .navigationTitle("Menú principal")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -255,6 +456,7 @@ public struct HomeView: View {
             }
         }
         .preferredColorScheme(preferredColorScheme)
+        .appTypography()
         .environment(\.dynamicTypeSize, preferredDynamicTypeSize)
     }
 
@@ -296,8 +498,12 @@ public struct HomeView: View {
             }
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(ScreenPalette.homeAgendaSurface)
         .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(ScreenPalette.agendaFrameStroke, lineWidth: 1)
+        )
     }
 
     private var dailyGoalsCard: some View {
@@ -319,8 +525,12 @@ public struct HomeView: View {
                 .foregroundStyle(.secondary)
         }
         .padding()
-        .background(Color(.tertiarySystemBackground))
+        .background(ScreenPalette.homeGoalSurface)
         .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(ScreenPalette.agendaFrameStroke, lineWidth: 1)
+        )
     }
 
     @ViewBuilder
@@ -508,15 +718,15 @@ public struct HomeView: View {
     private func statusColor(for status: ActivityStatus) -> Color {
         switch status {
         case .completed:
-            return .green
+            return ScreenPalette.accentSuccess
         case .pending:
-            return .yellow
+            return ScreenPalette.accentWarning
         case .notStarted:
-            return .gray.opacity(0.8)
+            return ScreenPalette.accentMuted
         case .failed:
-            return .red
+            return ScreenPalette.accentDanger
         case .inProgress:
-            return .blue
+            return ScreenPalette.accentInfo
         }
     }
 }
@@ -538,6 +748,7 @@ private struct PersonalChatbotView: View {
             chatComposer
         }
         .padding()
+        .background(ScreenPalette.homeBackground.ignoresSafeArea())
         .navigationTitle("Hamlet Hamster 🐹")
         .task {
             guard !hasLoaded else { return }
@@ -558,11 +769,11 @@ private struct PersonalChatbotView: View {
                     ForEach(messages) { message in
                         HStack {
                             if message.role == .assistant {
-                                chatBubble(message, alignment: .leading, background: Color(.secondarySystemBackground))
+                                chatBubble(message, alignment: .leading, background: ScreenPalette.homeBubbleAssistant)
                                 Spacer(minLength: 30)
                             } else {
                                 Spacer(minLength: 30)
-                                chatBubble(message, alignment: .trailing, background: Color.blue.opacity(0.18))
+                                chatBubble(message, alignment: .trailing, background: ScreenPalette.homeBubbleUser)
                             }
                         }
                     }
@@ -570,6 +781,13 @@ private struct PersonalChatbotView: View {
             }
             .frame(maxHeight: .infinity)
         }
+        .padding()
+        .background(ScreenPalette.homeMascotSurface)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(ScreenPalette.agendaFrameStroke, lineWidth: 1)
+        )
     }
 
     private var chatComposer: some View {
@@ -609,7 +827,7 @@ private struct PersonalChatbotView: View {
             options: AttributedString.MarkdownParsingOptions(interpretedSyntax: .full)
         ) {
             Text(markdown)
-                .tint(.blue)
+                .tint(ScreenPalette.accentLink)
         } else {
             Text(text)
         }
@@ -758,31 +976,44 @@ private struct ActivityLaunchPlaceholderView: View {
     #endif
 
     var body: some View {
-        VStack(spacing: 12) {
-            HStack(spacing: 10) {
-                Button("Finalizar") {
-                    finishAlertStep = .confirmFinish
-                }
-                .buttonStyle(.borderedProminent)
+        ZStack {
+            ScreenPalette.activityBackground.ignoresSafeArea()
 
-                Button("Pendiente") {
-                    Task { await markPendingAndExit() }
+            VStack(spacing: 12) {
+                HStack(spacing: 10) {
+                    Button("Finalizar") {
+                        finishAlertStep = .confirmFinish
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(ScreenPalette.buttonPrimary)
+
+                    Button("Pendiente") {
+                        Task { await markPendingAndExit() }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(ScreenPalette.buttonSecondary)
                 }
-                .buttonStyle(.bordered)
+
+                pomodoroCard
+                    .alert(item: $pomodoroTransitionAlert) { alert in
+                        Alert(
+                            title: Text("Pomodoro"),
+                            message: Text(alert.message),
+                            dismissButton: .default(Text("OK"))
+                        )
+                    }
+                chatSection
             }
-
-            pomodoroCard
-                .alert(item: $pomodoroTransitionAlert) { alert in
-                    Alert(
-                        title: Text("Pomodoro"),
-                        message: Text(alert.message),
-                        dismissButton: .default(Text("OK"))
-                    )
-                }
-            chatSection
-            chatComposer
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .padding([.top, .horizontal])
         }
-        .padding()
+        .safeAreaInset(edge: .bottom) {
+            chatComposer
+                .padding(.horizontal)
+                .padding(.top, 8)
+                .padding(.bottom, 10)
+                .background(ScreenPalette.activitySurface.ignoresSafeArea())
+        }
         .navigationTitle("Iniciar actividad")
         .navigationBarBackButtonHidden(true)
         .task {
@@ -905,8 +1136,12 @@ private struct ActivityLaunchPlaceholderView: View {
                     .font(.caption.weight(.semibold))
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
-                    .background(isWorkPhase ? Color.blue.opacity(0.2) : Color.green.opacity(0.2))
-                    .foregroundStyle(isWorkPhase ? .blue : .green)
+                    .background(
+                        isWorkPhase
+                            ? ScreenPalette.accentInfo.opacity(0.2)
+                            : ScreenPalette.accentSuccess.opacity(0.2)
+                    )
+                    .foregroundStyle(isWorkPhase ? ScreenPalette.accentInfo : ScreenPalette.accentSuccess)
                     .clipShape(Capsule())
             }
 
@@ -928,14 +1163,15 @@ private struct ActivityLaunchPlaceholderView: View {
             if let wellbeingMessage {
                 Text(wellbeingMessage)
                     .font(.caption)
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(ScreenPalette.accentFocus)
             }
 
             HStack(spacing: 10) {
                 Button(isRunning ? "Pausar" : "Iniciar") {
                     isRunning.toggle()
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.borderedProminent)
+                .tint(ScreenPalette.buttonPrimary)
 
                 Button("Reiniciar") {
                     isRunning = false
@@ -945,7 +1181,8 @@ private struct ActivityLaunchPlaceholderView: View {
                     elapsedWellbeingSeconds = 0
                     wellbeingMessage = nil
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.borderedProminent)
+                .tint(ScreenPalette.buttonSecondary)
 
                 #if DEBUG
                 Button("DEBUG 10 s") {
@@ -953,14 +1190,15 @@ private struct ActivityLaunchPlaceholderView: View {
                     isRunning = true
                 }
                 .buttonStyle(.bordered)
-                .tint(.orange)
+                .tint(ScreenPalette.accentFocus)
                 #endif
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(ScreenPalette.pomodoroSurface)
         .clipShape(RoundedRectangle(cornerRadius: 12))
+        .appTypography()
     }
 
     private var chatSection: some View {
@@ -972,17 +1210,17 @@ private struct ActivityLaunchPlaceholderView: View {
                     ForEach(messages) { message in
                         HStack {
                             if message.role == .assistant {
-                                chatBubble(message, alignment: .leading, background: Color(.secondarySystemBackground))
+                                chatBubble(message, alignment: .leading, background: ScreenPalette.activityBubbleAssistant)
                                 Spacer(minLength: 30)
                             } else {
                                 Spacer(minLength: 30)
-                                chatBubble(message, alignment: .trailing, background: Color.blue.opacity(0.18))
+                                chatBubble(message, alignment: .trailing, background: ScreenPalette.activityBubbleUser)
                             }
                         }
                     }
                 }
             }
-            .frame(maxHeight: 260)
+            .frame(maxHeight: .infinity)
         }
     }
 
@@ -994,6 +1232,7 @@ private struct ActivityLaunchPlaceholderView: View {
                     Image(systemName: "plus.viewfinder")
                 }
                 .buttonStyle(.bordered)
+                .tint(ScreenPalette.buttonTertiary)
                 #else
                 Button {
                     Task { await addSimulatedImageAttachment() }
@@ -1001,6 +1240,7 @@ private struct ActivityLaunchPlaceholderView: View {
                     Image(systemName: "plus.viewfinder")
                 }
                 .buttonStyle(.bordered)
+                .tint(ScreenPalette.buttonTertiary)
                 #endif
 
                 TextField("Escribe a Hamlet Hamster...", text: $userInput, axis: .vertical)
@@ -1010,6 +1250,7 @@ private struct ActivityLaunchPlaceholderView: View {
                     Task { await sendUserMessage() }
                 }
                 .buttonStyle(.borderedProminent)
+                .tint(ScreenPalette.buttonPrimary)
                 .disabled(userInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
             Text("Hamlet Hamster responde preguntas, explica conceptos y sugiere fuentes abiertas.")
@@ -1041,7 +1282,7 @@ private struct ActivityLaunchPlaceholderView: View {
             options: AttributedString.MarkdownParsingOptions(interpretedSyntax: .full)
         ) {
             Text(markdown)
-                .tint(.blue)
+                .tint(ScreenPalette.accentLink)
         } else {
             Text(text)
         }
@@ -1372,6 +1613,7 @@ private struct ActivityEditSheet: View {
                 Text("Esta acción no se puede deshacer.")
             }
         }
+        .tint(ScreenPalette.buttonPrimary)
     }
 
     private func save() async {
@@ -1521,6 +1763,13 @@ private struct WeeklyAgendaView: View {
                 }
                 .padding(.horizontal, 4)
             }
+            .padding(8)
+            .background(ScreenPalette.homeAgendaSurface)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(ScreenPalette.agendaFrameStroke, lineWidth: 1)
+            )
 
             HStack {
                 Spacer()
@@ -1536,6 +1785,8 @@ private struct WeeklyAgendaView: View {
             }
         }
         .padding()
+        .background(ScreenPalette.agendaBackground.ignoresSafeArea())
+        .tint(ScreenPalette.buttonPrimary)
         .navigationTitle("Agenda semanal")
         .task {
             await loadWeekActivities()
@@ -1659,15 +1910,15 @@ private struct WeeklyAgendaView: View {
     private func statusColor(for status: ActivityStatus) -> Color {
         switch status {
         case .completed:
-            return .green
+            return ScreenPalette.accentSuccess
         case .pending:
-            return .yellow
+            return ScreenPalette.accentWarning
         case .notStarted:
-            return .gray.opacity(0.8)
+            return ScreenPalette.accentMuted
         case .failed:
-            return .red
+            return ScreenPalette.accentDanger
         case .inProgress:
-            return .blue
+            return ScreenPalette.accentInfo
         }
     }
 
@@ -1746,6 +1997,7 @@ private struct AddActivitySheet: View {
                 }
             }
         }
+        .tint(ScreenPalette.buttonPrimary)
     }
 
     private func add() async {
@@ -1882,7 +2134,7 @@ public struct AgendaView: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding()
-                    .background(Color(.tertiarySystemBackground))
+                    .background(ScreenPalette.agendaSurface)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
 
@@ -1927,6 +2179,8 @@ public struct AgendaView: View {
             }
         }
         .padding()
+        .background(ScreenPalette.agendaBackground.ignoresSafeArea())
+        .appTypography()
         .task {
             guard !hasLoaded else { return }
             hasLoaded = true
@@ -2018,15 +2272,15 @@ public struct AgendaView: View {
     private func statusColor(for status: ActivityStatus) -> Color {
         switch status {
         case .notStarted:
-            .gray.opacity(0.8)
+            ScreenPalette.accentMuted
         case .pending:
-            .yellow
+            ScreenPalette.accentWarning
         case .inProgress:
-            .blue
+            ScreenPalette.accentInfo
         case .completed:
-            .green
+            ScreenPalette.accentSuccess
         case .failed:
-            .red
+            ScreenPalette.accentDanger
         }
     }
 }
@@ -2071,7 +2325,7 @@ public struct PomodoroTimerView: View {
             if didFinish {
                 Text("Tiempo completado")
                     .font(.caption)
-                    .foregroundStyle(.green)
+                    .foregroundStyle(ScreenPalette.accentSuccess)
             }
             HStack(spacing: 10) {
                 Button(isRunning ? "Pausar" : "Iniciar") {
@@ -2113,8 +2367,9 @@ public struct PomodoroTimerView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(ScreenPalette.pomodoroSurface)
         .clipShape(RoundedRectangle(cornerRadius: 12))
+        .appTypography()
     }
 
     private func resetTimer() {
@@ -2175,104 +2430,118 @@ public struct MentalTrainerView: View {
     public init() {}
 
     public var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Entrenador Mental")
-                .font(.title2.weight(.semibold))
+        ZStack {
+            ScreenPalette.trainerBackground.ignoresSafeArea()
 
-            if let errorMessage {
-                Text(errorMessage)
-                    .font(.footnote)
-                    .foregroundStyle(.red)
-            }
+            ScrollView {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Entrenador Mental")
+                        .font(.title2.weight(.semibold))
 
-            if !hasStarted {
-                if let scheduledMotivationMessage {
-                    Label(scheduledMotivationMessage.body, systemImage: "bell.badge")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
-                Text("Responde trivia de opción múltiple con 15 segundos por pregunta. La partida termina en el primer error.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                Button(isLoading ? "Cargando..." : "Iniciar entrenamiento") {
-                    Task { await startSession() }
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(isLoading)
-            } else {
-                HStack {
-                    Label("Correctas: \(correctAnswers)", systemImage: "checkmark.seal.fill")
-                    Spacer()
-                    Label("Fallos: \(incorrectAnswers)", systemImage: "xmark.seal.fill")
-                }
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+                    if let errorMessage {
+                        Text(errorMessage)
+                            .font(.footnote)
+                            .foregroundStyle(ScreenPalette.accentDanger)
+                    }
 
-                if let currentQuestion {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Pregunta \(currentQuestionIndex + 1)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Text(currentQuestion.prompt)
-                            .font(.headline)
-
-                        if questionDeadline != nil {
-                            Text("Tiempo restante: \(remainingSeconds)s")
-                                .font(.subheadline.monospacedDigit())
-                                .foregroundStyle(remainingSeconds <= 3 ? .red : .secondary)
+                    if !hasStarted {
+                        if let scheduledMotivationMessage {
+                            Label(scheduledMotivationMessage.body, systemImage: "bell.badge")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
                         }
+                        Text("Responde trivia de opción múltiple con 15 segundos por pregunta. La partida termina en el primer error.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                        Button(isLoading ? "Cargando..." : "Iniciar entrenamiento") {
+                            Task { await startSession() }
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(ScreenPalette.buttonPrimary)
+                        .disabled(isLoading)
+                    } else {
+                        HStack {
+                            Label("Correctas: \(correctAnswers)", systemImage: "checkmark.seal.fill")
+                            Spacer()
+                            Label("Fallos: \(incorrectAnswers)", systemImage: "xmark.seal.fill")
+                        }
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
 
-                        ForEach(Array(currentQuestion.options.enumerated()), id: \.offset) { index, option in
-                            Button {
-                                Task { await answer(optionIndex: index) }
-                            } label: {
-                                HStack {
-                                    Text(option)
-                                        .frame(maxWidth: .infinity, alignment: .leading)
-                                    if questionAnswered {
-                                        if showCorrectAnswerIndicator {
-                                            if index == correctOptionIndex {
-                                                Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
-                                            } else if index == answeredOptionIndex {
-                                                Image(systemName: "xmark.circle.fill").foregroundStyle(.red)
+                        if let currentQuestion {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Pregunta \(currentQuestionIndex + 1)")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                Text(currentQuestion.prompt)
+                                    .font(.headline)
+
+                                if questionDeadline != nil {
+                                    Text("Tiempo restante: \(remainingSeconds)s")
+                                        .font(.subheadline.monospacedDigit())
+                                        .foregroundStyle(remainingSeconds <= 3 ? ScreenPalette.accentDanger : .secondary)
+                                }
+
+                                ForEach(Array(currentQuestion.options.enumerated()), id: \.offset) { index, option in
+                                    Button {
+                                        Task { await answer(optionIndex: index) }
+                                    } label: {
+                                        HStack {
+                                            Text(option)
+                                                .frame(maxWidth: .infinity, alignment: .leading)
+                                            if questionAnswered {
+                                                    if showCorrectAnswerIndicator {
+                                                        if index == correctOptionIndex {
+                                                            Image(systemName: "checkmark.circle.fill").foregroundStyle(ScreenPalette.accentSuccess)
+                                                        } else if index == answeredOptionIndex {
+                                                            Image(systemName: "xmark.circle.fill").foregroundStyle(ScreenPalette.accentDanger)
+                                                        }
+                                                    } else if index == answeredOptionIndex {
+                                                        Image(systemName: "exclamationmark.circle.fill").foregroundStyle(ScreenPalette.accentWarning)
+                                                    }
+                                                }
                                             }
-                                        } else if index == answeredOptionIndex {
-                                            Image(systemName: "exclamationmark.circle.fill").foregroundStyle(.yellow)
-                                        }
                                     }
+                                    .buttonStyle(.bordered)
+                                    .tint(ScreenPalette.buttonSecondary)
+                                    .disabled(questionAnswered || sessionCompleted || isLoading)
                                 }
                             }
-                            .buttonStyle(.bordered)
-                            .disabled(questionAnswered || sessionCompleted || isLoading)
+                            .padding()
+                            .background(ScreenPalette.trainerSurface)
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(ScreenPalette.agendaFrameStroke, lineWidth: 1)
+                            )
+                        }
+
+                        if let feedbackMessage {
+                            Text(feedbackMessage)
+                                .font(.footnote)
+                                .foregroundStyle(feedbackColor)
+                        }
+
+                        HStack(spacing: 10) {
+                            Button("Nueva sesión") {
+                                Task { await startSession() }
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .tint(ScreenPalette.buttonPrimary)
+                            .disabled(isLoading)
+
+                            if sessionCompleted || isGameOver {
+                                Text(isGameOver ? "Game Over" : "Sesión finalizada")
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(isGameOver ? ScreenPalette.accentDanger : ScreenPalette.accentSuccess)
+                            }
                         }
                     }
-                    .padding()
-                    .background(Color(.secondarySystemBackground))
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
-
-                if let feedbackMessage {
-                    Text(feedbackMessage)
-                        .font(.footnote)
-                        .foregroundStyle(feedbackColor)
-                }
-
-                HStack(spacing: 10) {
-                    Button("Nueva sesión") {
-                        Task { await startSession() }
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(isLoading)
-
-                    if sessionCompleted || isGameOver {
-                        Text(isGameOver ? "Game Over" : "Sesión finalizada")
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(isGameOver ? .red : .green)
-                    }
-                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding()
             }
         }
-        .padding()
         .task {
             guard !hasScheduledMotivation else { return }
             hasScheduledMotivation = true
@@ -2297,6 +2566,7 @@ public struct MentalTrainerView: View {
         .onDisappear {
             countdownTask?.cancel()
         }
+        .appTypography()
     }
 
     private func startSession() async {
@@ -2358,7 +2628,7 @@ public struct MentalTrainerView: View {
                 sessionCompleted = true
                 questionAnswered = true
                 feedbackMessage = "No se pudo continuar la trivia. Fin del intento."
-                feedbackColor = .red
+                feedbackColor = ScreenPalette.accentDanger
                 questionDeadline = nil
                 remainingSeconds = 0
             }
@@ -2379,13 +2649,13 @@ public struct MentalTrainerView: View {
 
             if feedback.isCorrect {
                 feedbackMessage = "¡Correcto!"
-                feedbackColor = .green
+                feedbackColor = ScreenPalette.accentSuccess
             } else if feedback.isGameOver {
                 feedbackMessage = "Respuesta incorrecta. Fin de la trivia."
-                feedbackColor = .red
+                feedbackColor = ScreenPalette.accentDanger
             } else {
                 feedbackMessage = "Respuesta incorrecta."
-                feedbackColor = .red
+                feedbackColor = ScreenPalette.accentDanger
             }
         }
 
@@ -2421,7 +2691,7 @@ public struct MentalTrainerView: View {
                 isLoading = false
                 if feedbackMessage == nil {
                     feedbackMessage = "Sesión finalizada."
-                    feedbackColor = .green
+                    feedbackColor = ScreenPalette.accentSuccess
                 }
             }
         }
@@ -2661,7 +2931,7 @@ private struct AppSettingsView: View {
                 if let timerSoundError {
                     Text(timerSoundError)
                         .font(.footnote)
-                        .foregroundStyle(.red)
+                        .foregroundStyle(ScreenPalette.accentDanger)
                 }
             }
 
@@ -2810,7 +3080,10 @@ private struct AppSettingsView: View {
                     }
             }
         }
+        .scrollContentBackground(.hidden)
+        .background(ScreenPalette.settingsBackground.ignoresSafeArea())
         .navigationTitle("Ajustes")
+        .tint(ScreenPalette.buttonPrimary)
     }
 
     private func generateBackupPayload() async {
