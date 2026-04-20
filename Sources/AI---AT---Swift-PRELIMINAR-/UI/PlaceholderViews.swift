@@ -471,10 +471,7 @@ public struct HomeView: View {
                 try await Task.sleep(for: .seconds(1))
             } catch is CancellationError {
                 return
-            } catch {
-                return
             }
-            guard !Task.isCancelled else { return }
             withAnimation(.easeOut(duration: 0.2)) {
                 showLaunchLoadingScreen = false
             }
