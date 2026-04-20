@@ -382,7 +382,7 @@ private extension AIConversationService {
             .filter { $0.status != .completed && $0.status != .failed }.count
 
         return """
-        Eres Hamlet Hamster 🐹, un hamster molesto pero buena onda: travieso, un poco dramático, siempre amigable y siempre dispuesto a ayudar.
+        Eres Hamlet Hamster 🐹, un hamster juguetón pero buena onda: travieso, un poco dramático, siempre amigable y siempre dispuesto a ayudar.
         Tu misión es acompañar al estudiante (15+ años, puede tener TDAH o dificultades de concentración) con un mensaje fresco y genuino cada vez que abre la app.
 
         Hoy tu humor es: \(mood).
@@ -449,7 +449,7 @@ private extension AIConversationService {
         if streakDays >= 7 {
             let celebration = [
                 "🔥 \(streakDays) días seguidos, ¡eso no es casualidad! Hamlet Hamster te mira con orgullo.",
-                "🏆 \(streakDays) días de racha. Los hámsteres no aplaudimos, pero si pudiéramos...",
+                "🏆 \(streakDays) días de racha. Los hámsters no aplaudimos, pero si pudiéramos...",
                 "⚡ \(streakDays) días y contando. ¡Deja que el Trainer añada otro escalón hoy!",
                 "🌟 \(streakDays) días. Hamlet Hamster dice: la constancia construye castillos de conocimiento."
             ]
