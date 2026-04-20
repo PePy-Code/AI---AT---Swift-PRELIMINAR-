@@ -141,6 +141,11 @@ private enum ScreenPalette {
 
     static let activityBackground = homeBackground
     static let activitySurface = homeSurface
+    static let pomodoroSurface = LinearGradient(
+        colors: [Color(hex: 0x5E22CF), Color(hex: 0xA10063)],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
     static let activityBubbleAssistant = mintGreen.opacity(0.30)
     static let activityBubbleUser = mexicanPink.opacity(0.24)
     static let buttonPrimary = neonPurple
@@ -154,6 +159,16 @@ private enum ScreenPalette {
     static let trainerSurface = vividTrainerSurface
 
     static let settingsBackground = neonBackground
+}
+
+private enum AppTypography {
+    static let baseFont = Font.custom("JK Gothic M", size: 16)
+}
+
+private extension View {
+    func appTypography() -> some View {
+        environment(\.font, AppTypography.baseFont)
+    }
 }
 
 public struct HomeView: View {
@@ -346,6 +361,7 @@ public struct HomeView: View {
             }
         }
         .preferredColorScheme(preferredColorScheme)
+        .appTypography()
         .environment(\.dynamicTypeSize, preferredDynamicTypeSize)
     }
 
@@ -1081,8 +1097,9 @@ private struct ActivityLaunchPlaceholderView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .background(ScreenPalette.activitySurface)
+        .background(ScreenPalette.pomodoroSurface)
         .clipShape(RoundedRectangle(cornerRadius: 12))
+        .appTypography()
     }
 
     private var chatSection: some View {
@@ -2061,6 +2078,7 @@ public struct AgendaView: View {
         }
         .padding()
         .background(ScreenPalette.agendaBackground.ignoresSafeArea())
+        .appTypography()
         .task {
             guard !hasLoaded else { return }
             hasLoaded = true
@@ -2247,8 +2265,9 @@ public struct PomodoroTimerView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .background(ScreenPalette.activitySurface)
+        .background(ScreenPalette.pomodoroSurface)
         .clipShape(RoundedRectangle(cornerRadius: 12))
+        .appTypography()
     }
 
     private func resetTimer() {
@@ -2445,6 +2464,7 @@ public struct MentalTrainerView: View {
         .onDisappear {
             countdownTask?.cancel()
         }
+        .appTypography()
     }
 
     private func startSession() async {
