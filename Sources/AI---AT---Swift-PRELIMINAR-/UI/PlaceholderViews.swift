@@ -470,7 +470,10 @@ public struct HomeView: View {
         .task {
             do {
                 try await Task.sleep(for: Self.launchDuration)
+            } catch is CancellationError {
+                return
             } catch {
+                assertionFailure("Unexpected launch delay error: \(error)")
                 return
             }
             guard !Task.isCancelled else { return }
