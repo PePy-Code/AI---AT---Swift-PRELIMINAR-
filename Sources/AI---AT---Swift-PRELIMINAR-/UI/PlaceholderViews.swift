@@ -842,15 +842,9 @@ private struct HamletMiniIcon: View {
             ?? Image(systemName: fallbackSystemIconName)
     )
     let size: CGFloat
-    private let iconImage: Image
-
-    init(size: CGFloat) {
-        self.size = size
-        self.iconImage = Self.resolvedIconImage
-    }
 
     var body: some View {
-        iconImage
+        Self.resolvedIconImage
             .resizable()
             .scaledToFit()
             .frame(width: size, height: size)
