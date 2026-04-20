@@ -83,17 +83,24 @@ private extension Color {
 }
 
 private enum ScreenPalette {
+    private static let neonMagenta = Color(hex: 0xFF00FF)
+    private static let neonPurple = Color(hex: 0x7B2CFF)
     private static let mintGreen = Color(hex: 0x3DE5C3)
     private static let mexicanPink = Color(hex: 0xE4007C)
     private static let pumpkinOrange = Color(hex: 0xFF7518)
     private static let pastelPink = Color(hex: 0xF8BBD9)
+    private static let neonSurface = LinearGradient(
+        colors: [neonMagenta.opacity(0.30), neonPurple.opacity(0.30)],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
 
     static let homeBackground = LinearGradient(
         colors: [mintGreen.opacity(0.24), mexicanPink.opacity(0.22)],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
     )
-    static let homeSurface = pastelPink.opacity(0.42)
+    static let homeSurface = neonSurface
     static let homeBubbleAssistant = pumpkinOrange.opacity(0.24)
     static let homeBubbleUser = mexicanPink.opacity(0.20)
 
@@ -102,7 +109,7 @@ private enum ScreenPalette {
         startPoint: .topLeading,
         endPoint: .bottomTrailing
     )
-    static let activitySurface = pastelPink.opacity(0.46)
+    static let activitySurface = neonSurface
     static let activityBubbleAssistant = mintGreen.opacity(0.30)
     static let activityBubbleUser = mexicanPink.opacity(0.24)
 
@@ -111,14 +118,14 @@ private enum ScreenPalette {
         startPoint: .topLeading,
         endPoint: .bottomTrailing
     )
-    static let agendaSurface = pastelPink.opacity(0.38)
+    static let agendaSurface = neonSurface
 
     static let trainerBackground = LinearGradient(
         colors: [mexicanPink.opacity(0.22), pumpkinOrange.opacity(0.20), mintGreen.opacity(0.18)],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
     )
-    static let trainerSurface = pastelPink.opacity(0.42)
+    static let trainerSurface = neonSurface
 
     static let settingsBackground = LinearGradient(
         colors: [pastelPink.opacity(0.26), mintGreen.opacity(0.18), mexicanPink.opacity(0.18), pumpkinOrange.opacity(0.18)],
