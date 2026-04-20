@@ -470,11 +470,8 @@ public struct HomeView: View {
             do {
                 try await Task.sleep(for: .seconds(Self.launchLoadingDurationSeconds))
             } catch {
-                if error is CancellationError { return }
-                assertionFailure("Unexpected launch loading delay error: \(error)")
                 return
             }
-            guard showLaunchLoadingScreen else { return }
             withAnimation(.easeOut(duration: 0.2)) {
                 showLaunchLoadingScreen = false
             }
