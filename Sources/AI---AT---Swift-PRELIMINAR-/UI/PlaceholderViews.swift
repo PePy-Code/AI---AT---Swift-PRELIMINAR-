@@ -83,40 +83,45 @@ private extension Color {
 }
 
 private enum ScreenPalette {
+    private static let mintGreen = Color(hex: 0x3DE5C3)
+    private static let mexicanPink = Color(hex: 0xE4007C)
+    private static let pumpkinOrange = Color(hex: 0xFF7518)
+    private static let pastelPink = Color(hex: 0xF8BBD9)
+
     static let homeBackground = LinearGradient(
-        colors: [Color(hex: 0xFFA746, opacity: 0.20), Color(hex: 0xFB4B85, opacity: 0.22)],
+        colors: [mintGreen.opacity(0.24), mexicanPink.opacity(0.22)],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
     )
-    static let homeSurface = Color(hex: 0xFFFFFF, opacity: 0.86)
-    static let homeBubbleAssistant = Color(hex: 0xFFA94C, opacity: 0.22)
-    static let homeBubbleUser = Color(hex: 0xFB4B85, opacity: 0.20)
+    static let homeSurface = pastelPink.opacity(0.42)
+    static let homeBubbleAssistant = pumpkinOrange.opacity(0.24)
+    static let homeBubbleUser = mexicanPink.opacity(0.20)
 
     static let activityBackground = LinearGradient(
-        colors: [Color(hex: 0xFFB031, opacity: 0.20), Color(hex: 0x9C62AF, opacity: 0.20), Color(hex: 0xF33C84, opacity: 0.18)],
+        colors: [pumpkinOrange.opacity(0.22), mintGreen.opacity(0.22), mexicanPink.opacity(0.20)],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
     )
-    static let activitySurface = Color(hex: 0xFFF3E8, opacity: 0.90)
-    static let activityBubbleAssistant = Color(hex: 0xFCDDA3, opacity: 0.32)
-    static let activityBubbleUser = Color(hex: 0xFF3991, opacity: 0.22)
+    static let activitySurface = pastelPink.opacity(0.46)
+    static let activityBubbleAssistant = mintGreen.opacity(0.30)
+    static let activityBubbleUser = mexicanPink.opacity(0.24)
 
     static let agendaBackground = LinearGradient(
-        colors: [Color(hex: 0xB043EC, opacity: 0.14), Color(hex: 0xF297F6, opacity: 0.14), Color(hex: 0xD5C2C1, opacity: 0.18)],
+        colors: [mintGreen.opacity(0.20), pastelPink.opacity(0.24), pumpkinOrange.opacity(0.18)],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
     )
-    static let agendaSurface = Color(hex: 0xFFFFFF, opacity: 0.88)
+    static let agendaSurface = pastelPink.opacity(0.38)
 
     static let trainerBackground = LinearGradient(
-        colors: [Color(hex: 0xFFA06A, opacity: 0.18), Color(hex: 0xE63F8A, opacity: 0.18), Color(hex: 0x9E0ACC, opacity: 0.16)],
+        colors: [mexicanPink.opacity(0.22), pumpkinOrange.opacity(0.20), mintGreen.opacity(0.18)],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
     )
-    static let trainerSurface = Color(hex: 0xFFF2F5, opacity: 0.90)
+    static let trainerSurface = pastelPink.opacity(0.42)
 
     static let settingsBackground = LinearGradient(
-        colors: [Color(hex: 0xF1B9E6, opacity: 0.15), Color(hex: 0xE68284, opacity: 0.16), Color(hex: 0xE7C695, opacity: 0.14)],
+        colors: [pastelPink.opacity(0.26), mintGreen.opacity(0.18), mexicanPink.opacity(0.18), pumpkinOrange.opacity(0.18)],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
     )
