@@ -70,6 +70,102 @@ private func appLocale() -> Locale {
     Locale(identifier: AppPreferences.localeIdentifier)
 }
 
+private struct ConceptArtReference {
+    let subdirectory: String
+    let fileName: String
+    let fileExtension: String
+}
+
+private enum ConceptArtAsset {
+    static let menuPrincipal = ConceptArtReference(
+        subdirectory: "UIDesignConceptArt/MenuPrincipal",
+        fileName: "MenuPrincipal",
+        fileExtension: "jpg"
+    )
+    static let menuPrincipalElements = ConceptArtReference(
+        subdirectory: "UIDesignConceptArt/MenuPrincipal",
+        fileName: "elementosdelmenu",
+        fileExtension: "jpg"
+    )
+    static let activityScreen = ConceptArtReference(
+        subdirectory: "UIDesignConceptArt/PantallaActividad",
+        fileName: "Actividad",
+        fileExtension: "jpg"
+    )
+    static let activityButtons = ConceptArtReference(
+        subdirectory: "UIDesignConceptArt/PantallaActividad",
+        fileName: "BotonesActividad",
+        fileExtension: "jpg"
+    )
+    static let trainerMenu = ConceptArtReference(
+        subdirectory: "UIDesignConceptArt/Trainer",
+        fileName: "MenuIniciarEntrenador",
+        fileExtension: "jpg"
+    )
+    static let settingsScreen = ConceptArtReference(
+        subdirectory: "UIDesignConceptArt/Ajustes",
+        fileName: "ajustes",
+        fileExtension: "jpg"
+    )
+}
+
+private func conceptArtImage(_ reference: ConceptArtReference) -> Image? {
+    guard let url = Bundle.module.url(
+        forResource: reference.fileName,
+        withExtension: reference.fileExtension,
+        subdirectory: reference.subdirectory
+    ) else {
+        return nil
+    }
+    #if canImport(UIKit)
+    guard let image = UIImage(contentsOfFile: url.path) else { return nil }
+    return Image(uiImage: image)
+    #elseif canImport(AppKit)
+    guard let image = NSImage(contentsOf: url) else { return nil }
+    return Image(nsImage: image)
+    #else
+    return nil
+    #endif
+}
+
+private struct ConceptArtBanner: View {
+    let asset: ConceptArtReference
+    let title: String
+    let systemImage: String
+    var height: CGFloat = 170
+
+    var body: some View {
+        ZStack(alignment: .bottomLeading) {
+            if let image = conceptArtImage(asset) {
+                image
+                    .resizable()
+                    .scaledToFill()
+            } else {
+                LinearGradient(
+                    colors: [Color.blue.opacity(0.35), Color.purple.opacity(0.35)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            }
+
+            Label(title, systemImage: systemImage)
+                .font(.footnote.weight(.semibold))
+                .padding(.horizontal, 10)
+                .padding(.vertical, 8)
+                .background(.ultraThinMaterial)
+                .clipShape(Capsule())
+                .padding(10)
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: height)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color(.separator), lineWidth: 1)
+        )
+    }
+}
+
 public struct HomeView: View {
     @State private var todayActivities: [Activity] = []
     @State private var tomorrowActivities: [Activity] = []
@@ -114,6 +210,18 @@ public struct HomeView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 12))
 
                     dailyGoalsCard
+
+                    ConceptArtBanner(
+                        asset: ConceptArtAsset.menuPrincipal,
+                        title: "Arte conceptual · Menú principal",
+                        systemImage: "house.fill"
+                    )
+
+                    ConceptArtBanner(
+                        asset: ConceptArtAsset.menuPrincipalElements,
+                        title: "Arte conceptual · Elementos del menú",
+                        systemImage: "square.grid.2x2.fill"
+                    )
 
                     Button {
                         openPersonalChatbot = true
@@ -770,6 +878,18 @@ private struct ActivityLaunchPlaceholderView: View {
                 }
                 .buttonStyle(.bordered)
             }
+
+            ConceptArtBanner(
+                asset: ConceptArtAsset.activityScreen,
+                title: "Arte conceptual · Pantalla de actividad",
+                systemImage: "play.rectangle.fill"
+            )
+
+            ConceptArtBanner(
+                asset: ConceptArtAsset.activityButtons,
+                title: "Arte conceptual · Botones de actividad",
+                systemImage: "rectangle.grid.1x2.fill"
+            )
 
             pomodoroCard
                 .alert(item: $pomodoroTransitionAlert) { alert in
@@ -2179,6 +2299,12 @@ public struct MentalTrainerView: View {
             Text("Entrenador Mental")
                 .font(.title2.weight(.semibold))
 
+            ConceptArtBanner(
+                asset: ConceptArtAsset.trainerMenu,
+                title: "Arte conceptual · Entrenador",
+                systemImage: "brain.head.profile"
+            )
+
             if let errorMessage {
                 Text(errorMessage)
                     .font(.footnote)
@@ -2561,6 +2687,15 @@ private struct AppSettingsView: View {
 
     var body: some View {
         Form {
+            Section("Diseño conceptual") {
+                ConceptArtBanner(
+                    asset: ConceptArtAsset.settingsScreen,
+                    title: "Arte conceptual · Ajustes",
+                    systemImage: "gearshape.fill",
+                    height: 150
+                )
+            }
+
             Section("Tema visual y accesibilidad") {
                 Picker("Tema", selection: $visualTheme) {
                     Text("Sistema").tag(AppVisualTheme.system)

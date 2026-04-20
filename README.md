@@ -130,6 +130,20 @@ Para que se vea en simulador:
 - El target de la app debe tener `AppIcon` como nombre de app icon.
 - Si no se actualiza, elimina la app del simulador y vuelve a ejecutar.
 
+## UI Concept Art integrado (UIDesignConceptArt)
+
+Se integró `UIDesignConceptArt` como recursos del paquete para reflejar el diseño conceptual en pantallas clave:
+- Menú principal
+- Pantalla de actividad
+- Entrenador
+- Ajustes
+
+Ubicación de recursos procesados por SPM:
+- `Sources/AI---AT---Swift-PRELIMINAR-/Resources/UIDesignConceptArt`
+
+Referencia original del arte conceptual:
+- `UIDesignConceptArt/`
+
 ## Seguridad
 
 - Nunca hardcodees claves reales en commits.
