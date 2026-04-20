@@ -860,6 +860,7 @@ struct OpenSourceKnowledgeServiceNetworkTests {
         let session = makeMockedSession()
         var capturedMaxTokens: Int?
         var capturedMessagesCount: Int?
+        var capturedHistoryMessageLength: Int?
         let stateQueue = DispatchQueue(label: "test.groq.request.tokenBudget")
 
         MockURLProtocol.setRequestHandler { request in
@@ -872,6 +873,8 @@ struct OpenSourceKnowledgeServiceNetworkTests {
                     stateQueue.sync {
                         capturedMaxTokens = maxTokens
                         capturedMessagesCount = messages?.count
+                        let historyMessages = messages?.dropFirst().dropLast()
+                        capturedHistoryMessageLength = (historyMessages?.first?["content"] as? String)?.count
                     }
                 }
                 let groqPayload: [String: Any] = [
@@ -919,9 +922,12 @@ struct OpenSourceKnowledgeServiceNetworkTests {
         let service = OpenSourceKnowledgeService(session: session, groqAPIKey: "test-key")
         _ = await service.answer(for: "Explica relatividad de forma breve.", history: history)
 
-        let (maxTokens, messagesCount) = stateQueue.sync { (capturedMaxTokens, capturedMessagesCount) }
+        let (maxTokens, messagesCount, historyMessageLength) = stateQueue.sync {
+            (capturedMaxTokens, capturedMessagesCount, capturedHistoryMessageLength)
+        }
         #expect(maxTokens == 420)
         #expect(messagesCount == 8)
+        #expect(historyMessageLength == 320)
     }
 
     @Test("OpenSourceKnowledgeService agrega hipervínculos cuando Groq no los devuelve")

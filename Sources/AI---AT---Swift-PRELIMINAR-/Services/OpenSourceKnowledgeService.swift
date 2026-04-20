@@ -306,7 +306,7 @@ public struct OpenSourceKnowledgeService: OpenSourceKnowledgeProviding {
         guard maxCharacters > 0 else { return "" }
         let cleaned = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard cleaned.count > maxCharacters else { return cleaned }
-        return String(cleaned.prefix(maxCharacters)).trimmingCharacters(in: .whitespacesAndNewlines)
+        return String(cleaned.prefix(maxCharacters))
     }
 }
 
