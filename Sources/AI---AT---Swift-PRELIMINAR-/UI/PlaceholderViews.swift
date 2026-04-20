@@ -269,6 +269,7 @@ private extension View {
 public struct HomeView: View {
     // Keep a short intentional delay so the branded startup screen is visible.
     private static let launchDuration: Duration = .seconds(1.8)
+    private static let launchFadeDuration: TimeInterval = 0.2
     @State private var isShowingLaunchScreen = true
     @State private var todayActivities: [Activity] = []
     @State private var tomorrowActivities: [Activity] = []
@@ -479,7 +480,7 @@ public struct HomeView: View {
                 return
             }
             guard !Task.isCancelled else { return }
-            withAnimation(.easeOut(duration: 0.2)) {
+            withAnimation(.easeOut(duration: Self.launchFadeDuration)) {
                 isShowingLaunchScreen = false
             }
         }
@@ -759,6 +760,7 @@ public struct HomeView: View {
 private struct AppLaunchLoadingView: View {
     private static let hamletImageName = "Hamlet"
     private static let hamletImageExtension = "png"
+    private static let imageSize: CGFloat = 220
     private let launchImage: Image
 
     init() {
@@ -771,7 +773,7 @@ private struct AppLaunchLoadingView: View {
             launchImage
                 .resizable()
                 .scaledToFit()
-                .frame(width: 220, height: 220)
+                .frame(width: Self.imageSize, height: Self.imageSize)
                 .accessibilityHidden(true)
         }
         .accessibilityElement(children: .ignore)
