@@ -130,19 +130,18 @@ Para que se vea en simulador:
 - El target de la app debe tener `AppIcon` como nombre de app icon.
 - Si no se actualiza, elimina la app del simulador y vuelve a ejecutar.
 
-## UI Concept Art integrado (UIDesignConceptArt)
+## UI Concept Art (paletas aplicadas)
 
-Se integró `UIDesignConceptArt` como recursos del paquete para reflejar el diseño conceptual en pantallas clave:
-- Menú principal
-- Pantalla de actividad
+La carpeta `UIDesignConceptArt/` se usa como referencia visual para aplicar paletas de color por pantalla:
+- Menú principal / chat
+- Pantalla de actividad / Pomodoro
+- Agenda
 - Entrenador
 - Ajustes
 
-Ubicación de recursos procesados por SPM:
-- `Sources/AI---AT---Swift-PRELIMINAR-/Resources/UIDesignConceptArt`
-
-Referencia original del arte conceptual:
-- `UIDesignConceptArt/`
+Nota:
+- El arte conceptual se conserva como referencia de diseño.
+- La UI del paquete aplica tema por color (no renderiza banners de imagen en runtime).
 
 ## Seguridad
 

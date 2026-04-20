@@ -70,100 +70,56 @@ private func appLocale() -> Locale {
     Locale(identifier: AppPreferences.localeIdentifier)
 }
 
-private struct ConceptArtReference {
-    let subdirectory: String
-    let fileName: String
-    let fileExtension: String
-}
-
-private enum ConceptArtAsset {
-    static let menuPrincipal = ConceptArtReference(
-        subdirectory: "UIDesignConceptArt/MenuPrincipal",
-        fileName: "MenuPrincipal",
-        fileExtension: "jpg"
-    )
-    static let menuPrincipalElements = ConceptArtReference(
-        subdirectory: "UIDesignConceptArt/MenuPrincipal",
-        fileName: "elementosdelmenu",
-        fileExtension: "jpg"
-    )
-    static let activityScreen = ConceptArtReference(
-        subdirectory: "UIDesignConceptArt/PantallaActividad",
-        fileName: "Actividad",
-        fileExtension: "jpg"
-    )
-    static let activityButtons = ConceptArtReference(
-        subdirectory: "UIDesignConceptArt/PantallaActividad",
-        fileName: "BotonesActividad",
-        fileExtension: "jpg"
-    )
-    static let trainerMenu = ConceptArtReference(
-        subdirectory: "UIDesignConceptArt/Trainer",
-        fileName: "MenuIniciarEntrenador",
-        fileExtension: "jpg"
-    )
-    static let settingsScreen = ConceptArtReference(
-        subdirectory: "UIDesignConceptArt/Ajustes",
-        fileName: "ajustes",
-        fileExtension: "jpg"
-    )
-}
-
-private func conceptArtImage(_ reference: ConceptArtReference) -> Image? {
-    guard let url = Bundle.module.url(
-        forResource: reference.fileName,
-        withExtension: reference.fileExtension,
-        subdirectory: reference.subdirectory
-    ) else {
-        return nil
-    }
-    #if canImport(UIKit)
-    guard let image = UIImage(contentsOfFile: url.path) else { return nil }
-    return Image(uiImage: image)
-    #elseif canImport(AppKit)
-    guard let image = NSImage(contentsOf: url) else { return nil }
-    return Image(nsImage: image)
-    #else
-    return nil
-    #endif
-}
-
-private struct ConceptArtBanner: View {
-    let asset: ConceptArtReference
-    let title: String
-    let systemImage: String
-    var height: CGFloat = 170
-
-    var body: some View {
-        ZStack(alignment: .bottomLeading) {
-            if let image = conceptArtImage(asset) {
-                image
-                    .resizable()
-                    .scaledToFill()
-            } else {
-                LinearGradient(
-                    colors: [Color.blue.opacity(0.35), Color.purple.opacity(0.35)],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            }
-
-            Label(title, systemImage: systemImage)
-                .font(.footnote.weight(.semibold))
-                .padding(.horizontal, 10)
-                .padding(.vertical, 8)
-                .background(.ultraThinMaterial)
-                .clipShape(Capsule())
-                .padding(10)
-        }
-        .frame(maxWidth: .infinity)
-        .frame(height: height)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(Color(.separator), lineWidth: 1)
+private extension Color {
+    init(hex: Int, opacity: Double = 1.0) {
+        self.init(
+            .sRGB,
+            red: Double((hex >> 16) & 0xFF) / 255.0,
+            green: Double((hex >> 8) & 0xFF) / 255.0,
+            blue: Double(hex & 0xFF) / 255.0,
+            opacity: opacity
         )
     }
+}
+
+private enum ScreenPalette {
+    static let homeBackground = LinearGradient(
+        colors: [Color(hex: 0xFFA746, opacity: 0.20), Color(hex: 0xFB4B85, opacity: 0.22)],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+    static let homeSurface = Color(hex: 0xFFFFFF, opacity: 0.86)
+    static let homeBubbleAssistant = Color(hex: 0xFFA94C, opacity: 0.22)
+    static let homeBubbleUser = Color(hex: 0xFB4B85, opacity: 0.20)
+
+    static let activityBackground = LinearGradient(
+        colors: [Color(hex: 0xFFB031, opacity: 0.20), Color(hex: 0x9C62AF, opacity: 0.20), Color(hex: 0xF33C84, opacity: 0.18)],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+    static let activitySurface = Color(hex: 0xFFF3E8, opacity: 0.90)
+    static let activityBubbleAssistant = Color(hex: 0xFCDDA3, opacity: 0.32)
+    static let activityBubbleUser = Color(hex: 0xFF3991, opacity: 0.22)
+
+    static let agendaBackground = LinearGradient(
+        colors: [Color(hex: 0xB043EC, opacity: 0.14), Color(hex: 0xF297F6, opacity: 0.14), Color(hex: 0xD5C2C1, opacity: 0.18)],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+    static let agendaSurface = Color(hex: 0xFFFFFF, opacity: 0.88)
+
+    static let trainerBackground = LinearGradient(
+        colors: [Color(hex: 0xFFA06A, opacity: 0.18), Color(hex: 0xE63F8A, opacity: 0.18), Color(hex: 0x9E0ACC, opacity: 0.16)],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+    static let trainerSurface = Color(hex: 0xFFF2F5, opacity: 0.90)
+
+    static let settingsBackground = LinearGradient(
+        colors: [Color(hex: 0xF1B9E6, opacity: 0.15), Color(hex: 0xE68284, opacity: 0.16), Color(hex: 0xE7C695, opacity: 0.14)],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
 }
 
 public struct HomeView: View {
@@ -206,22 +162,10 @@ public struct HomeView: View {
                         .buttonStyle(.borderedProminent)
                     }
                     .padding()
-                    .background(Color(.secondarySystemBackground))
+                    .background(ScreenPalette.homeSurface)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
 
                     dailyGoalsCard
-
-                    ConceptArtBanner(
-                        asset: ConceptArtAsset.menuPrincipal,
-                        title: "Arte conceptual · Menú principal",
-                        systemImage: "house.fill"
-                    )
-
-                    ConceptArtBanner(
-                        asset: ConceptArtAsset.menuPrincipalElements,
-                        title: "Arte conceptual · Elementos del menú",
-                        systemImage: "square.grid.2x2.fill"
-                    )
 
                     Button {
                         openPersonalChatbot = true
@@ -240,7 +184,7 @@ public struct HomeView: View {
                             }
                         }
                         .padding()
-                        .background(.white)
+                        .background(ScreenPalette.homeSurface)
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                         .overlay(
                             RoundedRectangle(cornerRadius: 12)
@@ -273,6 +217,7 @@ public struct HomeView: View {
                 }
                 .padding()
             }
+            .background(ScreenPalette.homeBackground.ignoresSafeArea())
             .navigationTitle("Menú principal")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -404,7 +349,7 @@ public struct HomeView: View {
             }
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(ScreenPalette.homeSurface)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
@@ -427,7 +372,7 @@ public struct HomeView: View {
                 .foregroundStyle(.secondary)
         }
         .padding()
-        .background(Color(.tertiarySystemBackground))
+        .background(ScreenPalette.homeSurface)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
@@ -646,6 +591,7 @@ private struct PersonalChatbotView: View {
             chatComposer
         }
         .padding()
+        .background(ScreenPalette.homeBackground.ignoresSafeArea())
         .navigationTitle("Roedor 🐭")
         .task {
             guard !hasLoaded else { return }
@@ -666,11 +612,11 @@ private struct PersonalChatbotView: View {
                     ForEach(messages) { message in
                         HStack {
                             if message.role == .assistant {
-                                chatBubble(message, alignment: .leading, background: Color(.secondarySystemBackground))
+                                chatBubble(message, alignment: .leading, background: ScreenPalette.homeBubbleAssistant)
                                 Spacer(minLength: 30)
                             } else {
                                 Spacer(minLength: 30)
-                                chatBubble(message, alignment: .trailing, background: Color.blue.opacity(0.18))
+                                chatBubble(message, alignment: .trailing, background: ScreenPalette.homeBubbleUser)
                             }
                         }
                     }
@@ -879,18 +825,6 @@ private struct ActivityLaunchPlaceholderView: View {
                 .buttonStyle(.bordered)
             }
 
-            ConceptArtBanner(
-                asset: ConceptArtAsset.activityScreen,
-                title: "Arte conceptual · Pantalla de actividad",
-                systemImage: "play.rectangle.fill"
-            )
-
-            ConceptArtBanner(
-                asset: ConceptArtAsset.activityButtons,
-                title: "Arte conceptual · Botones de actividad",
-                systemImage: "rectangle.grid.1x2.fill"
-            )
-
             pomodoroCard
                 .alert(item: $pomodoroTransitionAlert) { alert in
                     Alert(
@@ -903,6 +837,7 @@ private struct ActivityLaunchPlaceholderView: View {
             chatComposer
         }
         .padding()
+        .background(ScreenPalette.activityBackground.ignoresSafeArea())
         .navigationTitle("Iniciar actividad")
         .navigationBarBackButtonHidden(true)
         .task {
@@ -1079,7 +1014,7 @@ private struct ActivityLaunchPlaceholderView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(ScreenPalette.activitySurface)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
@@ -1092,11 +1027,11 @@ private struct ActivityLaunchPlaceholderView: View {
                     ForEach(messages) { message in
                         HStack {
                             if message.role == .assistant {
-                                chatBubble(message, alignment: .leading, background: Color(.secondarySystemBackground))
+                                chatBubble(message, alignment: .leading, background: ScreenPalette.activityBubbleAssistant)
                                 Spacer(minLength: 30)
                             } else {
                                 Spacer(minLength: 30)
-                                chatBubble(message, alignment: .trailing, background: Color.blue.opacity(0.18))
+                                chatBubble(message, alignment: .trailing, background: ScreenPalette.activityBubbleUser)
                             }
                         }
                     }
@@ -1656,6 +1591,7 @@ private struct WeeklyAgendaView: View {
             }
         }
         .padding()
+        .background(ScreenPalette.agendaBackground.ignoresSafeArea())
         .navigationTitle("Agenda semanal")
         .task {
             await loadWeekActivities()
@@ -2002,7 +1938,7 @@ public struct AgendaView: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding()
-                    .background(Color(.tertiarySystemBackground))
+                    .background(ScreenPalette.agendaSurface)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
 
@@ -2047,6 +1983,7 @@ public struct AgendaView: View {
             }
         }
         .padding()
+        .background(ScreenPalette.agendaBackground.ignoresSafeArea())
         .task {
             guard !hasLoaded else { return }
             hasLoaded = true
@@ -2233,7 +2170,7 @@ public struct PomodoroTimerView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(ScreenPalette.activitySurface)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
@@ -2298,12 +2235,6 @@ public struct MentalTrainerView: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Entrenador Mental")
                 .font(.title2.weight(.semibold))
-
-            ConceptArtBanner(
-                asset: ConceptArtAsset.trainerMenu,
-                title: "Arte conceptual · Entrenador",
-                systemImage: "brain.head.profile"
-            )
 
             if let errorMessage {
                 Text(errorMessage)
@@ -2373,7 +2304,7 @@ public struct MentalTrainerView: View {
                         }
                     }
                     .padding()
-                    .background(Color(.secondarySystemBackground))
+                    .background(ScreenPalette.trainerSurface)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
 
@@ -2399,6 +2330,7 @@ public struct MentalTrainerView: View {
             }
         }
         .padding()
+        .background(ScreenPalette.trainerBackground.ignoresSafeArea())
         .task {
             guard !hasScheduledMotivation else { return }
             hasScheduledMotivation = true
@@ -2687,15 +2619,6 @@ private struct AppSettingsView: View {
 
     var body: some View {
         Form {
-            Section("Diseño conceptual") {
-                ConceptArtBanner(
-                    asset: ConceptArtAsset.settingsScreen,
-                    title: "Arte conceptual · Ajustes",
-                    systemImage: "gearshape.fill",
-                    height: 150
-                )
-            }
-
             Section("Tema visual y accesibilidad") {
                 Picker("Tema", selection: $visualTheme) {
                     Text("Sistema").tag(AppVisualTheme.system)
@@ -2945,6 +2868,8 @@ private struct AppSettingsView: View {
                     }
             }
         }
+        .scrollContentBackground(.hidden)
+        .background(ScreenPalette.settingsBackground.ignoresSafeArea())
         .navigationTitle("Ajustes")
     }
 
