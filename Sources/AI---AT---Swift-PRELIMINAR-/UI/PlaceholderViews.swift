@@ -830,14 +830,15 @@ private struct AppLaunchLoadingView: View {
 }
 
 private struct HamletMiniIcon: View {
+    private static let cornerRadiusRatio: CGFloat = 0.28
     let size: CGFloat
 
     var body: some View {
         Image("HamletMini", bundle: .module)
             .resizable()
-            .scaledToFill()
+            .scaledToFit()
             .frame(width: size, height: size)
-            .clipShape(RoundedRectangle(cornerRadius: size * 0.28, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: size * Self.cornerRadiusRatio, style: .continuous))
             .accessibilityHidden(true)
     }
 }
