@@ -249,7 +249,7 @@ private extension AIConversationService {
     }
 
     func friendlyGreeting() -> String {
-        "Soy Hamlet Hamster 🐹 No encontré fuentes directas ahora mismo, pero puedo ayudarte a enfocar tu estudio paso a paso."
+        "Soy Hamlet Hamster. No encontré fuentes directas ahora mismo, pero puedo ayudarte a enfocar tu estudio paso a paso."
     }
 
     func refusalWithSources(_ sources: [String]) -> String {
@@ -258,7 +258,7 @@ private extension AIConversationService {
     }
 
     func refusalWithoutSources(context: String) -> String {
-        "Mejor que lo trabajes tú mismo 🐹\n\nSi quieres, armo un plan de estudio sobre \"\(context)\" y te comparto fuentes directas."
+        "Mejor que lo trabajes tú mismo.\n\nSi quieres, armo un plan de estudio sobre \"\(context)\" y te comparto fuentes directas."
     }
 
     func fallbackChatReply(title: String, context: String) -> String {
@@ -382,7 +382,7 @@ private extension AIConversationService {
             .filter { $0.status != .completed && $0.status != .failed }.count
 
         return """
-        Eres Hamlet Hamster 🐹, un hamster juguetón pero buena onda: travieso, un poco dramático, siempre amigable y siempre dispuesto a ayudar.
+        Eres Hamlet Hamster, un hamster juguetón pero buena onda: travieso, un poco dramático, siempre amigable y siempre dispuesto a ayudar.
         Tu misión es acompañar al estudiante (15+ años, puede tener TDAH o dificultades de concentración) con un mensaje fresco y genuino cada vez que abre la app.
 
         Hoy tu humor es: \(mood).
