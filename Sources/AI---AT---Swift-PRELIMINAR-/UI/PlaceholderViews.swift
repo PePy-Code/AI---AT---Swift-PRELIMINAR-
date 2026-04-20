@@ -473,7 +473,7 @@ public struct HomeView: View {
             } catch is CancellationError {
                 return
             } catch {
-                assertionFailure("Unexpected non-cancellation error while waiting launch delay: \(error)")
+                assertionFailure("Unexpected non-cancellation error while waiting for launch delay: \(error)")
                 return
             }
             guard !Task.isCancelled else { return }
@@ -802,9 +802,15 @@ private struct AppLaunchLoadingView: View {
             in: .module,
             compatibleWith: nil
         ) {
+            #if DEBUG
+            print("AppLaunchLoadingView: loaded Hamlet image via module named fallback.")
+            #endif
             return Image(uiImage: image)
         }
         if let image = UIImage(named: Self.hamletImageName) {
+            #if DEBUG
+            print("AppLaunchLoadingView: loaded Hamlet image via main bundle fallback.")
+            #endif
             return Image(uiImage: image)
         }
         #elseif canImport(AppKit)
@@ -816,9 +822,15 @@ private struct AppLaunchLoadingView: View {
             return Image(nsImage: image)
         }
         if let image = Bundle.module.image(forResource: NSImage.Name(Self.hamletImageName)) {
+            #if DEBUG
+            print("AppLaunchLoadingView: loaded Hamlet image via module named fallback.")
+            #endif
             return Image(nsImage: image)
         }
         if let image = NSImage(named: NSImage.Name(Self.hamletImageName)) {
+            #if DEBUG
+            print("AppLaunchLoadingView: loaded Hamlet image via app named fallback.")
+            #endif
             return Image(nsImage: image)
         }
         #endif
