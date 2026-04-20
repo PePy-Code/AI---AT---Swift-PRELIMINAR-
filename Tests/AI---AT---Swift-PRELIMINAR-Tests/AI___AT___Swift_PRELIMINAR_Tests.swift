@@ -860,7 +860,7 @@ struct OpenSourceKnowledgeServiceNetworkTests {
         let session = makeMockedSession()
         var capturedMaxTokens: Int?
         var capturedMessagesCount: Int?
-        let stateQueue = DispatchQueue(label: "test.groq.request.token-budget")
+        let stateQueue = DispatchQueue(label: "test.groq.request.tokenBudget")
 
         MockURLProtocol.setRequestHandler { request in
             let url = try #require(request.url)
