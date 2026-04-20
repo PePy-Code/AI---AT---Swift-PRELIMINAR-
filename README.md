@@ -120,6 +120,16 @@ Para aplicarlo en tu app iOS:
 2. Reemplaza el contenido de `AppIcon` con los archivos de `UIDesignConcept/AppIcon.appiconset`.
 3. Asegúrate de conservar `Contents.json` del set.
 
+También puedes instalarlo automáticamente con script:
+
+```bash
+./Scripts/install_app_icon.sh /ruta/a/TuApp/Assets.xcassets
+```
+
+Para que se vea en simulador:
+- El target de la app debe tener `AppIcon` como nombre de app icon.
+- Si no se actualiza, elimina la app del simulador y vuelve a ejecutar.
+
 ## Seguridad
 
 - Nunca hardcodees claves reales en commits.
