@@ -469,6 +469,8 @@ public struct HomeView: View {
             guard showLaunchLoadingScreen else { return }
             do {
                 try await Task.sleep(for: .seconds(1))
+            } catch is CancellationError {
+                return
             } catch {
                 return
             }
@@ -761,8 +763,8 @@ private struct AppLaunchLoadingView: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(
             localizedText(
-                es: "Pantalla de carga con hámster",
-                en: "Loading screen with hamster"
+                es: "Pantalla de carga",
+                en: "Loading screen"
             )
         )
     }
